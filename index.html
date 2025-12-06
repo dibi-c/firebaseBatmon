@@ -1184,6 +1184,8 @@ function renderEnergyCharts(data, periodLabel) {
 
         // --- Update Dashboard (Termasuk logic Min/Max baru) ---
         function updateDashboard(values) {
+
+             kirimDataKeFirebase();
             
             const currentTotalVoltage = values[DATA_INDICES.TOTAL_VOLTAGE];
             const currentCurrent = values[DATA_INDICES.CURRENT];
@@ -1465,4 +1467,5 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
     </script>
 </body>
 </html>
+
 
