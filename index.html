@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Monitor BMS 3S</title>
     <script src="tailwind.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
     <style>
         /* Menggunakan font Inter */
         html { font-family: 'Inter', sans-serif; }
@@ -338,6 +341,27 @@
 
     <script src="chart.js"></script>
     <script type="text/javascript">
+
+
+      // Konfigurasi Firebase Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyDLlc2nBOG6hesoQmhTD55BuRc5l7UF87I",
+            authDomain: "batmon-5c279.firebaseapp.com",
+            databaseURL: "https://batmon-5c279-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "batmon-5c279",
+            storageBucket: "batmon-5c279.firebasestorage.app",
+            messagingSenderId: "718766895236",
+            appId: "1:718766895236:web:b5dd36e93aaa114bcd52d1"
+        };
+
+        // 2. Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        // Referensi ke Realtime Database
+        const database = firebase.database();
+
+       
+        
         // --- UUID Konfigurasi Perangkat ---
         const UART_SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb'; 
         const TX_CHARACTERISTIC_UUID = '0000ffe2-0000-1000-8000-00805f9b34fb'; 
@@ -469,7 +493,67 @@
 
         
         
+/**
+ * Fungsi untuk mengambil data dari elemen HTML yang sudah didefinisikan 
+ * dan mengirimkannya ke Firebase.
+ */
+function kirimDataKeFirebase() {
+    console.log("Mengambil data dari elemen HTML dan mengirimkannya...");
 
+    // 1. Ambil Nilai (Value) dari Setiap Elemen HTML
+    // Gunakan .textContent untuk elemen non-input (p, span, div, dll.)
+    // Gunakan .value untuk elemen input (input, textarea, select)
+    
+    // Untuk tujuan demonstrasi, saya menggunakan .textContent.
+    // Sesuaikan ini jika Anda menggunakan elemen <input>!
+    
+    const dataBMS = {
+        // Data Utama
+        'Total_Voltage': totalVoltageElement.textContent,
+        'Min_Max_Voltage': minMaxVoltageElement.textContent, // Kirim sebagai string "3.15V / 3.39V"
+        'Current_Value': currentElement.textContent,
+        'Min_Max_Current': minMaxCurrentElement.textContent, 
+        'Power_Value': powerElement.textContent,
+        'Min_Max_Power': minMaxPowerElement.textContent, 
+
+        // Kapasitas dan Status Baterai
+        'Capacity_Used': capacityUsedElement.textContent,
+        'Remaining_Capacity': remainingCapacityElement.textContent,
+        'Delta_V': deltaVElement.textContent,
+        'State_of_Charge_SOC': socValueElement.textContent,
+        'State_of_Health_SOH': sohValueElement.textContent,
+        
+        // Suhu dan Waktu
+        'Temperature': tempValueElement.textContent,
+        'Time_Remaining': timeRemainingElement.textContent,
+        
+        // Status Keamanan
+        'Safety_Status_Text': safetyStatusText.textContent,
+        'Safety_Message': safetyMessage.textContent,
+        
+        // Data Tambahan (misalnya Total Energi)
+        'Total_Charge_Wh': totalChargeWhElement.textContent,
+        'Total_Discharge_Wh': totalDischargeWhElement.textContent, // Nilai yang Anda tanyakan
+
+        // Waktu Kirim
+        'timestamp': new Date().toLocaleString()
+    };
+    
+    // 2. Tentukan Lokasi (Path) di Database
+    const pathData = 'bms_data/live_monitoring'; // Path yang lebih spesifik
+    const dataRef = database.ref(pathData);
+
+    // 3. Kirim Data
+    dataRef.set(dataBMS)
+        .then(() => {
+            console.log("✅ Data dari HTML berhasil dikirim ke Firebase!");
+        })
+        .catch((error) => {
+            console.error("❌ Gagal mengirim data dari HTML:", error);
+        });
+}
+
+        
         // --- Utility Functions (formatTime, calculateChecksum, parseData, sendRequest, handleNotifications, onDisconnected) ---
         
 
@@ -1381,3 +1465,4 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
     </script>
 </body>
 </html>
+
