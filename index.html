@@ -175,31 +175,6 @@
         .dark .border-yellow-400 { border-color: #b45309 !important; }
         .dark .border-green-400 { border-color: #065f46 !important; }
     </style>
-    
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script>
-        // Konfigurasi Firebase Anda yang disediakan
-        const firebaseConfig = {
-          apiKey: "AIzaSyDLlc2nBOG6hesoQmhTD55BuRc5l7UF87I",
-          authDomain: "batmon-5c279.firebaseapp.com",
-          databaseURL: "https://batmon-5c279-default-rtdb.asia-southeast1.firebasedatabase.app",
-          projectId: "batmon-5c279",
-          storageBucket: "batmon-5c279.firebasestorage.app",
-          messagingSenderId: "718766895236",
-          appId: "1:718766895236:web:b5dd36e93aaa114bcd52d1"
-        };
-
-        // Inisialisasi Firebase App
-        firebase.initializeApp(firebaseConfig);
-        
-        // Dapatkan referensi ke Database
-        const database = firebase.database();
-
-        // Referensi ke path tempat data BMS akan disimpan.
-        // Data akan di-push ke 'power_logs'
-        const powerLogsRef = database.ref('power_logs');
-    </script>
     </head>
 <body class="min-h-screen p-4 md:p-8 bg-gray-50 text-gray-800 dark:text-gray-100 transition-colors duration-300">
     <script>
@@ -241,7 +216,7 @@
                 </button>
             </div>
         </header>
-        <p id="firestore-status" class="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">Status DB: Firebase Realtime Database Aktif.</p>
+        <p id="firestore-status" class="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">Status DB: Penyimpanan Lokal (localStorage) Aktif.</p>
 
         <section id="safety-status-section" class="status-box mb-6 hidden bg-green-100 text-green-600 border border-green-400">
             <h3 class="font-bold text-xl mb-1">Status Keselamatan: <span id="safety-status-text">Normal</span></h3>
@@ -316,7 +291,7 @@
                     <canvas id="whCombinedCanvas"></canvas>
                 </div>
                 
-                <p id="chart-status" class="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">Memuat data Wh dari Firebase...</p>
+                <p id="chart-status" class="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">Memuat data Wh dari penyimpanan lokal...</p>
                 <div class="flex flex-wrap justify-center space-x-8 text-sm mt-4 font-semibold">
                     <p class="text-green-600"><span class="inline-block w-3 h-3 rounded-full bg-green-500 mr-1"></span> Total Charge: <span id="total-charge-wh">0.000 Wh</span></p>
                     <p class="text-red-600"><span class="inline-block w-3 h-3 rounded-full bg-red-500 mr-1"></span> Total Discharge: <span id="total-discharge-wh">0.000 Wh</span></p>
@@ -379,9 +354,7 @@
         let whChart = null; // Instans Chart.js untuk Charge & Discharge Gabungan
         let lastLogTime = 0; // Untuk batasan logging 10 detik
         const LOG_INTERVAL_MS = 10000; // Interval logging 10 detik
-        // const LOCAL_STORAGE_KEY = 'bms_power_logs'; // DIHAPUS (Menggantikan dengan Firebase)
-        // const MAX_LOG_ENTRIES = 10000; // DIHAPUS (Menggantikan dengan Firebase)
-        const THEME_KEY = 'bms_theme'; // Kunci untuk tema
+        const MAX_LOG_ENTRIES = 10000; // Batas untuk mencegah localStorage penuh
 
         // Variabel untuk melacak Min/Max
         let minTotalVoltage = Infinity;
@@ -390,6 +363,10 @@
         let maxCurrent = -Infinity;
         let minPower = Infinity;
         let maxPower = -Infinity;
+
+        // Kunci untuk menyimpan data di localStorage
+        const LOCAL_STORAGE_KEY = 'bms_power_logs';
+        const THEME_KEY = 'bms_theme'; // Kunci untuk tema
 
         // --- DEFINISI SVG ICONS OFFLINE ---
         const SVG_ICONS = {
@@ -490,111 +467,157 @@
         const totalChargeWhElement = document.getElementById('total-charge-wh');
         const totalDischargeWhElement = document.getElementById('total-discharge-wh');
 
+        
+        
 
-        // --- Logic Tema (Tidak Berubah) ---
+        // --- Utility Functions (formatTime, calculateChecksum, parseData, sendRequest, handleNotifications, onDisconnected) ---
+        
 
-        function applyTheme(isDark) {
-            if (isDark) {
-                document.body.classList.add('dark');
-                localStorage.setItem(THEME_KEY, 'dark');
-                themeIcon.innerHTML = SVG_ICONS.THERMOMETER; // Ikon matahari untuk Light Mode (saat ini Dark)
-                themeIcon.classList.remove('rotate-0');
-                themeIcon.classList.add('rotate-90');
-            } else {
-                document.body.classList.remove('dark');
-                localStorage.setItem(THEME_KEY, 'light');
-                themeIcon.innerHTML = SVG_ICONS.FLASH; // Ikon bulan/petir untuk Dark Mode (saat ini Light)
-                themeIcon.classList.remove('rotate-90');
-                themeIcon.classList.add('rotate-0');
+/**
+ * Memformat waktu dalam satuan jam menjadi string "Hj Mm Ss" atau "N/A".
+ * @param {number} hours - Waktu dalam jam (misalnya 1.5 untuk 1 jam 30 menit).
+ * @returns {string} String waktu yang diformat.
+ */
+function formatTime(hours) {
+    // Menangani nilai tidak valid atau nol
+    if (!isFinite(hours) || hours <= 0) {
+        return "N/A";
+    }
+
+    // Mengubah jam ke total detik
+    const totalSeconds = hours * 3600;
+
+    // Memastikan totalSeconds adalah bilangan bulat terdekat (opsional, tapi disarankan)
+    const roundedSeconds = Math.round(totalSeconds);
+
+    const h = Math.floor(roundedSeconds / 3600);
+    const m = Math.floor((roundedSeconds % 3600) / 60);
+    const s = roundedSeconds % 60;
+
+    let result = "";
+
+    // Tambahkan Jam jika lebih dari 0
+    if (h > 0) {
+        result += `${h}j `;
+    }
+
+    // Tambahkan Menit jika lebih dari 0 ATAU jika Jam = 0
+    if (m > 0 || h > 0) {
+        result += `${m}m `;
+    }
+
+    // Tambahkan Detik (selalu ditambahkan jika waktu total > 0 dan kurang dari 1 jam)
+    // Atau jika Jam dan Menit nol, Detik harus ditampilkan (misal: "30s").
+    if (s > 0 || (h === 0 && m === 0)) {
+        // Hanya tampilkan jika waktu > 0
+        if (roundedSeconds > 0) {
+            result += `${s}s`;
+        }
+    }
+    
+    // Jika hasilnya kosong (misalnya, totalSeconds sangat kecil dan dibulatkan menjadi 0), 
+    // kembalikan kurang dari 1 detik.
+    return result.trim() || "<1s";
+}
+
+
+        
+        function calculateChecksum(dataView) {
+            let checksum = 0;
+            for (let i = 1; i <= 68; i++) {
+                checksum ^= dataView.getUint8(i);
             }
-            // Update warna chart setelah tema berubah
-            updateChartColors(isDark);
+            return checksum;
         }
+        function parseData(dataView) {
+            if (dataView.byteLength !== EXPECTED_LENGTH) {
+                errorDetails.textContent = `[Parsing Gagal Internal] Data Diterima Salah: ${dataView.byteLength} byte.`;
+                errorBox.classList.remove('hidden');
+                return null;
+            }
 
-        function toggleTheme() {
-            const isDark = document.body.classList.contains('dark');
-            applyTheme(!isDark);
-        }
+            const startByte = dataView.getUint8(0);
+            if (startByte !== 0xAA) {
+                errorDetails.textContent = `[Parsing Gagal] Start Byte salah: 0x${startByte.toString(17)}.`;
+                errorBox.classList.remove('hidden');
+                return null;
+            }
 
-        function loadTheme() {
-            const savedTheme = localStorage.getItem(THEME_KEY);
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const receivedChecksum = dataView.getUint8(69);
+            const calculatedChecksum = calculateChecksum(dataView);
+
+            if (receivedChecksum !== calculatedChecksum) {
+                errorDetails.textContent = `[Parsing Gagal] Checksum salah. Diterima: 0x${receivedChecksum.toString(17)}.`;
+                errorBox.classList.remove('hidden');
+                return null;
+            }
+
+            const values = [];
+            let offset = 1; 
+            for (let i = 0; i < 17; i++) {
+                const floatValue = dataView.getFloat32(offset, true);
+                values.push(floatValue);
+                offset += 4; 
+            }
             
-            // Logika default: jika tidak ada, ikuti preferensi sistem, jika ada, ikuti simpanan
-            const initialDark = (savedTheme === 'dark') || (savedTheme === null && prefersDark);
-            
-            // Ikon akan diatur oleh applyTheme(initialDark)
-            applyTheme(initialDark);
+            errorBox.classList.add('hidden'); 
+            return values;
         }
-
-        // --- Logic Protokol Bluetooth (Tidak Berubah) ---
-
-        /**
-         * Mengirim paket permintaan data ke BMS.
-         */
-        function sendRequest() {
+        async function sendRequest() {
             if (!txCharacteristic) return;
-            // Contoh paket permintaan data: [0xAA, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ..., 0x?? (checksum)]
-            
-            // Dalam implementasi ini, kita berasumsi BMS secara otomatis mengirim data.
-            // Jika diperlukan:
-            // const requestData = new Uint8Array([0xAA, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ... 60 nol byte ... */ 0x00]);
-            // txCharacteristic.writeValue(requestData).catch(error => { console.error('Gagal mengirim permintaan:', error); });
+            try {
+                const value = new TextEncoder().encode("R");
+                await txCharacteristic.writeValue(value);
+            } catch (error) {
+                console.error("Gagal mengirim perintah 'R':", error);
+                statusMessage.textContent = "Gagal mengirim perintah. Interval dihentikan.";
+                if (requestInterval) {
+                    clearInterval(requestInterval);
+                    requestInterval = null;
+                }
+            }
         }
-
-        /**
-         * Menangani notifikasi data dari karakteristik RX (BMS ke HP).
-         * @param {Event} event - Objek event notifikasi.
-         */
         function handleNotifications(event) {
-            const value = event.target.value;
-            const newBytes = new Uint8Array(value.buffer);
+            const incomingData = event.target.value.buffer;
             
-            // Tambahkan byte baru ke buffer global
-            const currentLength = dataBuffer.byteLength;
-            const newBuffer = new ArrayBuffer(currentLength + newBytes.byteLength);
+            const newBuffer = new ArrayBuffer(dataBuffer.byteLength + incomingData.byteLength);
             const view = new Uint8Array(newBuffer);
             
             view.set(new Uint8Array(dataBuffer), 0);
-            view.set(newBytes, currentLength);
-            dataBuffer = newBuffer;
+            view.set(new Uint8Array(incomingData), dataBuffer.byteLength);
             
-            // Urai data jika sudah mencapai panjang minimum yang diharapkan
-            while (dataBuffer.byteLength >= EXPECTED_LENGTH) {
+            dataBuffer = newBuffer;
+
+            if (dataBuffer.byteLength >= EXPECTED_LENGTH) {
                 const dataToParse = dataBuffer.slice(0, EXPECTED_LENGTH);
                 const dataView = new DataView(dataToParse);
-                
+
                 const parsedValues = parseData(dataView);
-                
+
                 if (parsedValues) {
                     updateDashboard(parsedValues);
-                    
-                    // --- LOGIC FIREBASE BARU ---
-                    logBMSData(parsedValues[DATA_INDICES.POWER]); // Log Power ke Firebase
+                    logBMSData(parsedValues[DATA_INDICES.POWER]); // Log Power ke LocalStorage
                     
                     // Refresh grafik setiap 10 detik (sesuai LOG_INTERVAL_MS)
                     const now = Date.now();
-                    if ((now - lastLogTime) >= LOG_INTERVAL_MS) {
+                    if ((now - lastLogTime) >= LOG_INTERVAL_MS) { 
                         fetchAndRenderGraphs(selectedPeriod);
-                        // lastLogTime = now; // Diperbarui di dalam logBMSData
+                        lastLogTime = now;
                     }
-                    // --- END LOGIC FIREBASE BARU ---
                     
                     statusMessage.textContent = `Terkoneksi | Data terakhir diterima dari BMS.`;
                 } else {
                     statusMessage.textContent = `Terkoneksi | Data diterima, namun gagal diuraikan (parsing error).`;
                     console.error("Parsing gagal, membuang paket 70 byte yang tidak valid.");
                 }
-                
-                // Buang paket yang telah diuraikan dari buffer
+
                 dataBuffer = dataBuffer.slice(EXPECTED_LENGTH); 
-                
+
                 if (dataBuffer.byteLength > 0) {
                     console.warn(`[Buffer Warning] ${dataBuffer.byteLength} byte data sisa.`);
                 }
             }
         }
-
         function onDisconnected() {
             if (requestInterval) {
                 clearInterval(requestInterval);
@@ -603,27 +626,32 @@
             if (rxCharacteristic) {
                 rxCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
             }
-            
             statusMessage.textContent = "Koneksi Bluetooth terputus.";
             deviceInfo.textContent = "";
             connectButton.disabled = false;
             disconnectButton.disabled = true;
-            dataBuffer = new ArrayBuffer(0);
+            dataBuffer = new ArrayBuffer(0); 
             
             // Reset display
             const initialValues = Array(17).fill(0.0);
             updateDashboard(initialValues);
-            safetyStatusSection.classList.add('hidden');
+            safetyStatusSection.classList.add('hidden'); 
             
             // Reset min/max trackers
-            minTotalVoltage = Infinity; maxTotalVoltage = -Infinity; minMaxVoltageElement.textContent = "Min: 0.00 V | Max: 0.00 V";
-            minCurrent = Infinity; maxCurrent = -Infinity; minMaxCurrentElement.textContent = "Min: 0.00 A | Max: 0.00 A";
-            minPower = Infinity; maxPower = -Infinity; minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
+            minTotalVoltage = Infinity;
+            maxTotalVoltage = -Infinity;
+            minMaxVoltageElement.textContent = "Min: 0.00 V | Max: 0.00 V";
+            
+            minCurrent = Infinity;
+            maxCurrent = -Infinity;
+            minMaxCurrentElement.textContent = "Min: 0.00 A | Max: 0.00 A";
+
+            minPower = Infinity;
+            maxPower = -Infinity;
+            minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
         }
 
-
         // --- Logic Koneksi Bluetooth (connectBluetooth, disconnectBluetooth) ---
-
         async function connectBluetooth() {
             if (!navigator.bluetooth) {
                 statusMessage.textContent = "Web Bluetooth tidak didukung. Gunakan Chrome via HTTPS/localhost.";
@@ -638,39 +666,50 @@
                 // Sisa logic koneksi Bluetooth sama seperti sebelumnya
                 device = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
-                    optionalServices: [UART_SERVICE_UUID]
+                    optionalServices: [UART_SERVICE_UUID] 
                 });
 
                 device.addEventListener('gattserverdisconnected', onDisconnected);
                 deviceInfo.textContent = `Perangkat: ${device.name || 'Tidak Dikenal'}`;
-                statusMessage.textContent = "Menghubungkan ke GATT server...";
-                
+                statusMessage.textContent = `Menyambung ke ${device.name || 'perangkat tak dikenal'}...`;
+
                 const server = await device.gatt.connect();
-                statusMessage.textContent = "Menemukan layanan UART...";
-
                 const service = await server.getPrimaryService(UART_SERVICE_UUID);
-                statusMessage.textContent = "Menemukan karakteristik RX dan TX...";
-
                 rxCharacteristic = await service.getCharacteristic(RX_CHARACTERISTIC_UUID);
                 txCharacteristic = await service.getCharacteristic(TX_CHARACTERISTIC_UUID);
-
+                
+                // Cek karakteristik properties
+                let errorMsg = '';
+                if (!(rxCharacteristic.properties.notify || rxCharacteristic.properties.indicate)) {
+                    errorMsg += 'RX (FFE1) tidak mendukung NOTIFY/INDICATE.\n';
+                }
+                if (!txCharacteristic.properties.write && !txCharacteristic.properties.writeWithoutResponse) {
+                    errorMsg += 'TX (FFE2) tidak mendukung WRITE.\n';
+                }
+                if (errorMsg) {
+                    throw new Error(`Karakteristik tidak mendukung operasi: ${errorMsg}`);
+                }
+                
                 await rxCharacteristic.startNotifications();
                 rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
                 
-                statusMessage.textContent = "Terkoneksi | Menunggu data BMS...";
+                statusMessage.textContent = "Terkoneksi! Permintaan data dimulai (1Hz).";
                 connectButton.disabled = true;
                 disconnectButton.disabled = false;
-                
-                // Reset min/max trackers
-                minTotalVoltage = Infinity; maxTotalVoltage = -Infinity;
-                minCurrent = Infinity; maxCurrent = -Infinity;
-                minPower = Infinity; maxPower = -Infinity;
+
+                // Reset min/max trackers saat koneksi baru
+                minTotalVoltage = Infinity;
+                maxTotalVoltage = -Infinity;
+                minCurrent = Infinity;
+                maxCurrent = -Infinity;
+                minPower = Infinity;
+                maxPower = -Infinity;
                 minMaxVoltageElement.textContent = "Min: 0.00 V | Max: 0.00 V";
                 minMaxCurrentElement.textContent = "Min: 0.00 A | Max: 0.00 A";
                 minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
                 
-                requestInterval = setInterval(sendRequest, 1000); 
-
+                requestInterval = setInterval(sendRequest, 1000);
+                
                 // Setelah koneksi berhasil, segera muat grafik untuk periode default
                 await fetchAndRenderGraphs(selectedPeriod);
 
@@ -679,6 +718,7 @@
                 errorDetails.textContent = `Error: ${error.message}`;
                 errorBox.classList.remove('hidden');
                 statusMessage.textContent = "Koneksi Gagal. Silakan coba lagi.";
+                
                 connectButton.disabled = false;
                 disconnectButton.disabled = true;
                 deviceInfo.textContent = "";
@@ -688,175 +728,387 @@
                 }
             }
         }
-
         function disconnectBluetooth() {
             if (device && device.gatt.connected) {
                 device.gatt.disconnect();
             } else {
-                onDisconnected();
+                onDisconnected(); 
             }
         }
 
-        // --- Logic Firebase Realtime Database untuk Logging (BARU) ---
-        /**
-         * Mencatat data Power BMS ke Firebase Realtime Database.
-         * @param {number} power - Nilai daya (W) dari BMS.
-         */
+        // --- Logic LocalStorage untuk Logging ---
+        function getLocalLogs() {
+            try {
+                const logsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+                return logsString ? JSON.parse(logsString) : [];
+            } catch (e) {
+                console.error("Gagal mengambil log dari localStorage:", e);
+                return [];
+            }
+        }
+
         function logBMSData(power) {
             // Batasi logging hanya jika ada aktivitas (Charging/Discharging) atau baterai terhubung
             if (Math.abs(power) < 0.1) {
                 return; 
             }
             
-            // Gunakan interval 10 detik untuk menghemat traffic dan database size
+            // Gunakan interval 10 detik untuk menghemat storage
             const now = Date.now();
             if (now - lastLogTime < LOG_INTERVAL_MS) {
-                return;
+                 return;
             }
 
             try {
-                // Objek data yang akan dikirim
-                const logEntry = {
+                let logs = getLocalLogs();
+                
+                // Tambahkan log baru
+                logs.push({
                     timestamp: now,
                     power_W: power, 
-                };
+                });
                 
-                // PUSH data ke Firebase, menggunakan timestamp sebagai kunci unik di Firebase
-                // ini menciptakan entri baru di path 'power_logs/'
-                powerLogsRef.push(logEntry)
-                    .then(() => {
-                        // Tampilkan log sukses di konsol
-                        console.log(`[Firebase] Data Power (${power.toFixed(2)} W) berhasil dikirim.`);
-                    })
-                    .catch(error => {
-                        console.error("[Firebase] Gagal mengirim data:", error);
-                        errorDetails.textContent = `[Firebase Error] Gagal kirim: ${error.message}`;
-                        errorBox.classList.remove('hidden');
-                    });
+                // Batasi jumlah entri log
+                if (logs.length > MAX_LOG_ENTRIES) {
+                    // Hanya simpan MAX_LOG_ENTRIES data terbaru
+                    logs = logs.slice(logs.length - MAX_LOG_ENTRIES); 
+                }
 
-                // Perbarui lastLogTime agar tidak mengirim data terlalu cepat
+                // Simpan kembali ke localStorage
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(logs));
                 lastLogTime = now;
-                
             } catch (error) {
-                console.error("[Firebase] Gagal mencatat data ke Firebase:", error);
+                console.error("Gagal mencatat data ke localStorage:", error);
+            }
+        }
+
+        // --- Logic Grafik Wh (Diperbarui untuk Agregasi) ---
+        let selectedPeriod = '1h'; 
+
+        function selectPeriod(period) {
+            selectedPeriod = period;
+            
+            // Update tombol aktif
+            document.querySelectorAll('.period-button').forEach(btn => {
+                btn.classList.remove('period-active');
+                // Pastikan tombol non-aktif tetap terlihat baik di mode baru
+                const isDark = document.body.classList.contains('dark');
+                if (isDark) {
+                    btn.classList.remove('bg-primary', 'text-white', 'shadow-md');
+                    // Menggunakan gray-700/800 agar sesuai dengan dark mode
+                    btn.classList.add('bg-gray-800', 'text-gray-300', 'hover:bg-gray-600'); 
+                } else {
+                     btn.classList.remove('bg-gray-800', 'text-gray-300', 'hover:bg-gray-600');
+                     btn.classList.remove('bg-primary', 'text-white', 'shadow-md'); 
+                     btn.classList.add('hover:bg-gray-200'); 
+                }
+            });
+            const activeBtn = document.getElementById(`period-${period}`);
+            activeBtn.classList.add('period-active'); // Ini akan menerapkan bg-primary text-white
+
+            // Muat ulang grafik
+            fetchAndRenderGraphs(period);
+        }
+
+        /**
+         * Mengelompokkan log Power (W) ke dalam sejumlah titik (bins) untuk periode tertentu.
+         * Menghitung akumulasi Wh (Watt-jam) untuk setiap bin.
+         * @param {Array<Object>} logs - Array log { timestamp, power_W }.
+         * @param {number} durationMs - Total durasi periode dalam milidetik.
+         * @param {number} numPoints - Jumlah titik data (bins) yang diinginkan.
+         */
+        function aggregateEnergyData(logs, durationMs, numPoints) {
+            if (logs.length === 0 || numPoints === 0) {
+                return { 
+                    labels: Array(numPoints).fill('N/A'), 
+                    chargeData: Array(numPoints).fill(0), 
+                    dischargeData: Array(numPoints).fill(0),
+                    totalChargeWh: 0,
+                    totalDischargeWh: 0
+                };
+            }
+
+            // Tentukan ukuran setiap bin (interval waktu)
+            const binDurationMs = durationMs / numPoints;
+            const now = Date.now();
+            const startTime = now - durationMs;
+            
+            // Inisialisasi array untuk setiap bin
+            const chargeBins = Array(numPoints).fill(0);
+            const dischargeBins = Array(numPoints).fill(0);
+            const labels = [];
+            
+            let totalChargeWh = 0;
+            let totalDischargeWh = 0;
+            // Log interval 10 detik = 10 / 3600 jam
+            const timeIntervalHours = LOG_INTERVAL_MS / (1000 * 3600); 
+
+            // 1. Agregasi data log ke dalam bin yang sesuai
+            logs.forEach(log => {
+                // Hanya proses log dalam periode yang diminta
+                if (log.timestamp >= startTime) {
+                    // Hitung indeks bin. Math.floor memastikan indeks antara 0 hingga numPoints-1
+                    let binIndex = Math.floor((log.timestamp - startTime) / binDurationMs);
+
+                    // Batasi indeks agar tidak melebihi batas (misalnya jika ada log yang sedikit terlambat)
+                    if (binIndex >= numPoints) {
+                        binIndex = numPoints - 1;
+                    } else if (binIndex < 0) {
+                        return; // Abaikan
+                    }
+
+                    const power = log.power_W;
+                    // Wh dihitung dari Power (Watt) * Interval Waktu (Jam)
+                    const wh = Math.abs(power) * timeIntervalHours;
+
+                    if (power > 0.1) {
+                        chargeBins[binIndex] += wh;
+                        totalChargeWh += wh;
+                    } else if (power < -0.1) {
+                        // Discharge
+                        dischargeBins[binIndex] += wh; 
+                        totalDischargeWh += wh;
+                    }
+                }
+            });
+            
+            // 2. Buat label yang bermakna
+            for (let i = 0; i < numPoints; i++) {
+                const binStartMs = startTime + (i * binDurationMs);
+                const date = new Date(binStartMs);
+                
+                let label;
+                if (durationMs <= PERIOD_CONFIG['24h'].durationMs) {
+                    // Untuk jam dan sub-hari (1h, 6h, 12h, 24h)
+                    // Durasi bin 1 jam atau lebih
+                    if (binDurationMs >= 3600 * 1000) { 
+                        // Tampilkan jam (misal 14:00)
+                        label = `${date.getHours().toString().padStart(2, '0')}:00`;
+                    } else {
+                        // Tampilkan jam:menit
+                        label = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                    }
+
+                } else {
+                    // Untuk hari (7d, 30d)
+                    // Tampilkan tanggal atau nama hari
+                    label = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                }
+                labels.push(label);
+            }
+            
+            return { 
+                labels: labels, 
+                chargeData: chargeBins, 
+                // Discharge diplot sebagai nilai NEGATIF untuk bar chart dual-direction
+                dischargeData: dischargeBins.map(d => -d), 
+                totalChargeWh: totalChargeWh,
+                totalDischargeWh: totalDischargeWh
+            };
+        }
+
+        async function fetchAndRenderGraphs(period) {
+            
+            const config = PERIOD_CONFIG[period];
+            if (!config) return;
+
+            chartStatusElement.textContent = `Memuat data Power ${config.label} dari penyimpanan lokal...`;
+
+            try {
+                const durationMs = config.durationMs;
+                const numPoints = config.points;
+                const startTime = Date.now() - durationMs;
+                
+                const allLogs = getLocalLogs();
+                
+                // Filter log berdasarkan waktu
+                const filteredLogs = allLogs.filter(log => log.timestamp >= startTime);
+                
+                // Panggil fungsi agregasi baru
+                const aggregatedData = aggregateEnergyData(filteredLogs, durationMs, numPoints);
+                
+                if (filteredLogs.length === 0) {
+                    chartStatusElement.textContent = `Tidak ada data Power yang dicatat dalam ${config.label}.`;
+                } else {
+                    chartStatusElement.textContent = `Data ${filteredLogs.length} log, diagregasi menjadi ${numPoints} titik (${config.label}).`;
+                }
+
+             renderEnergyCharts(aggregatedData, config.label);
+
+            } catch (error) {
+                console.error("Gagal mengambil/memproses data grafik Wh dari localStorage:", error);
+                chartStatusElement.textContent = `GAGAL memuat grafik: ${error.message}`;
             }
         }
         
-        // --- Logic Parsing Data (Tidak Berubah) ---
+        // --- Logic Pindah Tema (Light/Dark Mode) ---
+       function updateChartColors(isDark) {
+    // Gunakan instance chart tunggal
+    if (!whChart) return; 
+    
+    // Tentukan warna teks dan grid berdasarkan mode
+    const textColor = isDark ? '#f3f4f6' : '#1f2937'; // gray-100 atau gray-800
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    
+    // Update warna untuk chart tunggal
+    // Note: Kita hanya perlu memanggil update() setelah mengganti opsi
+    whChart.options.plugins.legend.labels.color = textColor; 
+    whChart.options.scales.x.ticks.color = textColor;
+    whChart.options.scales.y.ticks.color = textColor;
+    whChart.options.scales.y.title.color = textColor;
+    whChart.options.scales.y.grid.color = gridColor;
+    whChart.update();
 
-        /**
-         * Mengubah nilai jam desimal menjadi format Hh Mm Ss yang mudah dibaca.
-         * @param {number} hours - Waktu dalam jam (desimal).
-         * @returns {string} - Waktu dalam format Hh Mm Ss.
-         */
-        function formatTimeRemaining(hours) {
-            if (isNaN(hours) || hours <= 0 || hours === Infinity) {
-                return "N/A";
-            }
-            // Mengubah jam desimal ke detik penuh
-            const totalSeconds = hours * 3600; 
-            // Memastikan totalSeconds adalah bilangan bulat terdekat (opsional, tapi disarankan)
-            const roundedSeconds = Math.round(totalSeconds);
+    // Catatan: Warna latar belakang kontainer diatur oleh kelas Tailwind (bg-gray-50/700)
+    // di HTML dan CSS, jadi tidak perlu diubah di sini.
+}
+
+        function applyTheme(isDark) {
+            const body = document.body;
             
-            const h = Math.floor(roundedSeconds / 3600);
-            const m = Math.floor((roundedSeconds % 3600) / 60);
-            const s = roundedSeconds % 60;
-
-            let result = "";
-
-            // Tambahkan Jam jika lebih dari 0
-            if (h > 0) {
-                result += `${h}j `;
+            if (isDark) {
+                body.classList.add('dark');
+                // Mode Gelap AKTIF -> Tampilkan ikon Bulan (UNICODE)
+                if (themeIcon) themeIcon.textContent = '🌙'; 
+            } else {
+                body.classList.remove('dark');
+                // Mode Terang AKTIF -> Tampilkan ikon Matahari (UNICODE)
+                if (themeIcon) themeIcon.textContent = '☀️'; 
             }
-            // Tambahkan Menit jika lebih dari 0 ATAU jika Jam > 0
-            if (m > 0 || h > 0) {
-                result += `${m}m `;
-            }
-            // Tambahkan Detik
-            if (s > 0 || (h === 0 && m === 0)) {
-                // Hanya tampilkan jika waktu > 0
-                if (roundedSeconds > 0) {
-                    result += `${s}s`;
+            
+            // Perbarui warna chart agar sesuai dengan tema baru
+            updateChartColors(isDark);
+            
+            // Panggil selectPeriod untuk menerapkan styling tombol aktif yang benar di mode baru
+            selectPeriod(selectedPeriod);
+        }
+
+        function toggleTheme() {
+            const isDark = document.body.classList.contains('dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            localStorage.setItem(THEME_KEY, newTheme);
+            applyTheme(newTheme === 'dark');
+        }
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Tentukan tema awal: Simpanan lokal > Preferensi sistem > Default (light)
+            const initialDark = (savedTheme === 'dark') || (savedTheme === null && prefersDark);
+            
+            // Ikon akan diatur oleh applyTheme(initialDark)
+            
+            applyTheme(initialDark);
+        }
+
+
+/**
+ * MERENDER SATU GRAFIK BATANG untuk CHARGE (Positif) dan DISCHARGE (Negatif).
+ */
+function renderEnergyCharts(data, periodLabel) { 
+    
+    // Update ringkasan angka global
+    totalChargeWhElement.textContent = `${data.totalChargeWh.toFixed(3)} Wh`;
+    totalDischargeWhElement.textContent = `${data.totalDischargeWh.toFixed(3)} Wh`;
+
+    const ctx = document.getElementById('whCombinedCanvas').getContext('2d');
+    
+    // Hancurkan instans yang ada
+    if (whChart) whChart.destroy();
+    
+    const isDark = document.body.classList.contains('dark');
+    const textColor = isDark ? '#f3f4f6' : '#1f2937'; 
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    
+    // Data Discharge sudah dibuat NEGATIF di aggregateEnergyData.
+
+    whChart = new Chart(ctx, {
+        type: 'bar', 
+        data: {
+            labels: data.labels, 
+            datasets: [
+                {
+                    label: 'Charge (Energi Masuk)',
+                    data: data.chargeData, // Nilai POSITIF
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)', // Hijau
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1,
+                },
+                {
+                    label: 'Discharge (Energi Keluar)',
+                    data: data.dischargeData, // Nilai NEGATIF dari aggregateEnergyData
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)', // Merah
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false, // Penting untuk container h-96
+            plugins: {
+                legend: {
+                    display: true, // Tampilkan legend untuk Charge dan Discharge
+                    labels: {
+                        color: textColor
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                       label: function(context) {
+                           const value = Math.abs(context.parsed.y).toFixed(3);
+                           return `${context.dataset.label}: ${value} Wh`; 
+                       },
+                    }
+                },
+            },
+            scales: {
+                x: {
+                    // Non-stacked di sumbu X (bar Charge dan Discharge berdampingan)
+                    grid: { display: false },
+                    ticks: { color: textColor }
+                },
+                y: {
+                    // Non-stacked di sumbu Y (karena menggunakan nilai positif/negatif)
+                    title: {
+                        display: true,
+                        text: 'Energi (Wh) - Charge (+), Discharge (-)',
+                        color: textColor 
+                    },
+                    grid: {
+                        borderDash: [5, 5],
+                        color: gridColor 
+                    },
+                    ticks: {
+                        color: textColor,
+                        // Tampilkan label sumbu Y (dengan tanda + atau - untuk menunjukkan arah)
+                        callback: function(value) {
+                             if (value === 0) return '0.00';
+                            return value.toFixed(2);
+                        }
+                    }
                 }
             }
-            
-            // Jika hasilnya kosong (misalnya, totalSeconds sangat kecil dan dibulatkan menjadi 0),
-            // kembalikan kurang dari 1 detik.
-            return result.trim() || "<1s";
         }
+    });
+    
+    // Pastikan warna chart diperbarui
+    updateChartColors(document.body.classList.contains('dark'));
+}
 
 
-        function calculateChecksum(dataView) {
-            let checksum = 0;
-            // Checksum dihitung dari byte 1 hingga 68
-            for (let i = 1; i <= 68; i++) {
-                checksum ^= dataView.getUint8(i);
-            }
-            return checksum;
-        }
-
-        function parseData(dataView) {
-            if (dataView.byteLength !== EXPECTED_LENGTH) {
-                errorDetails.textContent = `[Parsing Gagal Internal] Data Diterima Salah: ${dataView.byteLength} byte.`;
-                errorBox.classList.remove('hidden');
-                return null;
-            }
-
-            const startByte = dataView.getUint8(0);
-            if (startByte !== 0xAA) {
-                errorDetails.textContent = `[Parsing Gagal] Start Byte salah: 0x${startByte.toString(16)}.`;
-                errorBox.classList.remove('hidden');
-                return null;
-            }
-
-            const receivedChecksum = dataView.getUint8(69);
-            const calculatedChecksum = calculateChecksum(dataView);
-
-            if (receivedChecksum !== calculatedChecksum) {
-                errorDetails.textContent = `[Parsing Gagal] Checksum salah. Diterima: 0x${receivedChecksum.toString(16)}. Dihitung: 0x${calculatedChecksum.toString(16)}.`;
-                errorBox.classList.remove('hidden');
-                return null;
-            }
-
-            // Data OK: Urai 17 nilai float32
-            const values = [];
-            let offset = 1;
-            for (let i = 0; i < 17; i++) {
-                // Semua float32 (4 byte), little-endian (true)
-                const floatValue = dataView.getFloat32(offset, true); 
-                values.push(floatValue);
-                offset += 4;
-            }
-
-            errorBox.classList.add('hidden'); // Sembunyikan error jika parsing berhasil
-            return values;
-        }
-
-        // --- Logic Update Dashboard (Tidak Berubah) ---
-
+        // --- Update Dashboard (Termasuk logic Min/Max baru) ---
         function updateDashboard(values) {
-            // ... (Kode updateDashboard lama Anda tetap di sini)
             
             const currentTotalVoltage = values[DATA_INDICES.TOTAL_VOLTAGE];
             const currentCurrent = values[DATA_INDICES.CURRENT];
             const currentPower = values[DATA_INDICES.POWER];
-            const currentSOC = values[DATA_INDICES.SOC];
-            const currentSOH = values[DATA_INDICES.SOH];
-            const maxTemp = Math.max(values[DATA_INDICES.TEMP_1], values[DATA_INDICES.TEMP_2]);
-            const remainingCap = values[DATA_INDICES.CAP_USED];
-            const fullCap = values[DATA_INDICES.CAP_MAX];
-
-
-            // --- 1. Update Nilai Inti & Min/Max Tracker ---
-
-            totalVoltageElement.textContent = `${currentTotalVoltage.toFixed(2)} V`;
-            currentElement.textContent = `${currentCurrent.toFixed(2)} A`;
-            powerElement.textContent = `${currentPower.toFixed(2)} W`;
-            capacityUsedElement.textContent = `${remainingCap.toFixed(2)} Ah`;
-            remainingCapacityElement.textContent = `${fullCap.toFixed(2)} Ah`;
-
+            
+            // --- 1. Update Min/Max Trackers ---
+            
             // Voltage Tracker
-            if (currentTotalVoltage > 1.0) { // Hanya lacak jika baterai terhubung
+            if (currentTotalVoltage > 1.0) { 
                 minTotalVoltage = Math.min(minTotalVoltage, currentTotalVoltage);
                 maxTotalVoltage = Math.max(maxTotalVoltage, currentTotalVoltage);
             }
@@ -865,7 +1117,7 @@
             minMaxVoltageElement.textContent = `Min: ${minVDisplay} V | Max: ${maxVDisplay} V`;
 
             // Current Tracker
-            if (currentCurrent !== 0 || currentTotalVoltage > 1.0) {
+            if (currentCurrent !== 0 || currentTotalVoltage > 1.0) { 
                 minCurrent = Math.min(minCurrent, currentCurrent);
                 maxCurrent = Math.max(maxCurrent, currentCurrent);
             }
@@ -874,7 +1126,7 @@
             minMaxCurrentElement.textContent = `Min: ${minADisplay} A | Max: ${maxADisplay} A`;
 
             // Power Tracker
-            if (currentPower !== 0 || currentTotalVoltage > 1.0) {
+            if (currentPower !== 0 || currentTotalVoltage > 1.0) { 
                 minPower = Math.min(minPower, currentPower);
                 maxPower = Math.max(maxPower, currentPower);
             }
@@ -882,117 +1134,173 @@
             const maxWDisplay = maxPower !== -Infinity ? maxPower.toFixed(2) : '0.00';
             minMaxPowerElement.textContent = `Min: ${minWDisplay} W | Max: ${maxWDisplay} W`;
 
+
             // --- 2. Update Detail Sel & Hitung Delta V ---
             const cellVoltages = [
-                values[DATA_INDICES.CELL_1],
-                values[DATA_INDICES.CELL_2],
-                values[DATA_INDICES.CELL_3],
-                values[DATA_INDICES.CELL_4],
+                values[DATA_INDICES.CELL_1], values[DATA_INDICES.CELL_2],
+                values[DATA_INDICES.CELL_3], values[DATA_INDICES.CELL_4], 
             ];
-
+            
             let minCellV = Infinity;
             let maxCellV = -Infinity;
             let totalActiveCells = 0;
-
+            
             cellVoltages.forEach((v, i) => {
-                const cellElement = cellElements[i];
+                const cellElement = cellElements[i]; 
                 const voltage = v.toFixed(3);
-
-                if (v > 1.0) {
+                
+                if (v > 1.0) { 
                     minCellV = Math.min(minCellV, v);
                     maxCellV = Math.max(maxCellV, v);
                     totalActiveCells++;
                 }
 
                 cellElement.querySelector('.text-xl').textContent = `${voltage} V`;
-                
-                const isDark = document.body.classList.contains('dark');
-                let bgClass = 'bg-gray-100';
-                let textColor = 'text-gray-800';
 
-                if (v > 4.2) {
-                    bgClass = isDark ? 'bg-red-900' : 'bg-red-300';
-                    textColor = isDark ? 'text-red-300' : 'text-red-900';
-                } else if (v < 3.0 && v > 1.0) {
-                    bgClass = isDark ? 'bg-yellow-900' : 'bg-yellow-200';
-                    textColor = isDark ? 'text-yellow-300' : 'text-yellow-900';
-                } else {
-                    bgClass = isDark ? 'bg-gray-700' : 'bg-gray-100';
-                    textColor = isDark ? 'text-gray-200' : 'text-gray-800';
+                const isDark = document.body.classList.contains('dark');
+                
+                let bgClass = 'bg-gray-100'; 
+                let textColor = 'text-gray-800'; 
+                
+                if (v > 4.2) { 
+                    bgClass = 'bg-red-200'; 
+                    textColor = 'text-red-800'; 
+                } 
+                else if (v > 3.8) { 
+                    bgClass = 'bg-green-100'; 
+                    textColor = 'text-green-800'; 
+                } 
+                else if (v < 3.0 && v > 1.0) { 
+                    bgClass = 'bg-yellow-100'; 
+                    textColor = 'text-yellow-800'; 
+                } 
+                else if (v <= 1.0) { 
+                    bgClass = 'bg-gray-200'; 
+                    textColor = 'text-gray-500'; 
                 }
                 
-                cellElement.className = `p-3 text-center rounded-lg border border-gray-300 dark:border-gray-600 ${bgClass}`;
-                cellElement.querySelector('.text-xl').classList.remove('text-gray-800', 'text-gray-500', 'text-red-900', 'text-yellow-900', 'text-red-300', 'text-yellow-300');
-                cellElement.querySelector('.text-xl').classList.add(textColor);
+                if (isDark) {
+                    if (v > 4.2) { 
+                        bgClass = 'bg-red-900'; 
+                        textColor = 'text-red-400'; 
+                    } 
+                    else if (v > 3.8) { 
+                         bgClass = 'bg-green-100'; 
+                         textColor = 'text-green-300'; 
+                    } 
+                    else if (v < 3.0 && v > 1.0) { 
+                        bgClass = 'bg-yellow-100'; 
+                        textColor = 'text-yellow-300'; 
+                    } 
+                    else if (v <= 1.0) { 
+                        bgClass = 'bg-gray-800'; 
+                        textColor = 'text-gray-500'; 
+                    } else {
+                         bgClass = 'bg-gray-700'; 
+                         textColor = 'text-gray-100';
+                    }
+                }
+                
+                cellElement.className = `p-3 text-center rounded-lg border border-gray-300 transition-colors duration-300`;
+                cellElement.classList.add(bgClass);
+                cellElement.classList.add(isDark ? 'dark:border-gray-600' : 'border-gray-300'); 
+                
+                const cellVoltageText = cellElement.querySelector('.text-xl');
+                cellVoltageText.className = 'text-xl font-bold transition-colors duration-300 ' + textColor;
             });
-
+            
             const deltaV = (maxCellV !== -Infinity && minCellV !== Infinity) ? (maxCellV - minCellV) * 1000 : 0;
             const deltaVText = totalActiveCells >= 2 ? `${Math.round(deltaV)} mV` : 'N/A';
+            
             deltaVElement.textContent = deltaVText;
+
             const minVText = minCellV !== Infinity ? minCellV.toFixed(3) : '0.000';
             const maxVText = maxCellV !== -Infinity ? maxCellV.toFixed(3) : '0.000';
             summaryMinMaxElement.textContent = `Sel Aktif (Total: ${totalActiveCells}) | Min: ${minVText} V | Max: ${maxVText} V | DeltaV: ${deltaVText}`;
-            
             // ... (Balancing status logic) ...
-            if (totalActiveCells < 2) {
-                 balancingStatus.textContent = "Status Balancing: Tidak Ada Data Sel";
-                 balancingStatus.className = "font-bold text-lg text-gray-500 text-center mt-2";
-            } else if (deltaV > 50) { // Jika deltaV > 50 mV dianggap perlu balancing
-                balancingStatus.textContent = "Status Balancing: Balancing AKTIF (DeltaV Tinggi)";
-                balancingStatus.className = "font-bold text-lg text-red-600 dark:text-red-400 text-center mt-2";
-            } else {
-                balancingStatus.textContent = "Status Balancing: Normal";
-                balancingStatus.className = "font-bold text-lg text-green-600 dark:text-green-400 text-center mt-2";
-            }
 
 
             // --- 3. Update Ringkasan Utama (SOC, SOH, Suhu, Time Remaining) ---
-            const soc = Math.min(100, Math.max(0, currentSOC));
-            const sohAvg = Math.min(100, Math.max(0, currentSOH));
+            const soc = Math.min(100, Math.max(0, values[DATA_INDICES.SOC].toFixed(2)));
+            const sohAvg = Math.min(100, Math.max(0, values[DATA_INDICES.SOH].toFixed(2)));
+            const maxTemp = Math.max(values[DATA_INDICES.TEMP_1], values[DATA_INDICES.TEMP_2]).toFixed(1);
             
-            socValueElement.textContent = `${soc.toFixed(1)}%`;
+            socValueElement.textContent = `${soc}%`;
             socProgressElement.style.width = `${soc}%`;
-            
-            sohValueElement.textContent = `${sohAvg.toFixed(1)}%`;
+            sohValueElement.textContent = `${sohAvg}%`;
             sohProgressElement.style.width = `${sohAvg}%`;
+            tempValueElement.textContent = `${maxTemp}°C`;
+
+      
+           
+
+
+
+// --- Logika Perhitungan Waktu Sisa ---
+
+const remainingCap = values[DATA_INDICES.CAP_MAX]; // Kapasitas Tersisa (Ah)
+const fullCap = values[DATA_INDICES.CAP_USED];       // Kapasitas Penuh (Ah)
+const current = values[DATA_INDICES.CURRENT];       // Arus (A)
+const capToFull = fullCap - remainingCap;           // Kapasitas yang diperlukan untuk penuh (Ah)
+
+let timeRemainingText;
+
+// Kasus Arus Nol atau Sangat Kecil
+if (current === 0 || Math.abs(current) < 0.1) {
+    timeRemainingText = "Diam";
+} 
+// Kasus Pengisian (Charging)
+else if (current > 0) {
+    // Cek kondisi penuh untuk TTF
+    if (remainingCap >= fullCap) {
+        timeRemainingText = "Penuh (TTF)";
+    } else {
+        // CHARGE (TTF): (Kapasitas Penuh - Kapasitas Sisa) / Arus Charge (Jam)
+        const hours = capToFull / current;
+        timeRemainingText = formatTime(hours) + " (TTF)";
+    }
+} 
+// Kasus Pengosongan (Discharging)
+else {
+    // Cek kondisi habis untuk TTE
+    if (remainingCap <= 0) {
+        timeRemainingText = "Habis (TTE)";
+    } else {
+        // DISCHARGE (TTE): Kapasitas Sisa / Nilai Absolut Arus Discharge (Jam)
+        const hours = remainingCap / Math.abs(current);
+        timeRemainingText = formatTime(hours) + " (TTE)";
+    }
+}
+
+timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
+
+
             
-            tempValueElement.textContent = `${maxTemp.toFixed(1)}°C`;
+
+
+            // --- 4. Update Kelistrikan Inti ---
+            totalVoltageElement.textContent = `${currentTotalVoltage.toFixed(2)} V`;
+            currentElement.textContent = `${currentCurrent.toFixed(2)} A`;
+            powerElement.textContent = `${currentPower.toFixed(2)} W`; 
+            capacityUsedElement.textContent = `${values[DATA_INDICES.CAP_MAX].toFixed(2)} Ah`; 
+            remainingCapacityElement.textContent = `${values[DATA_INDICES.CAP_USED].toFixed(2)} Ah`;
             
-            // --- Logika Perhitungan Waktu Sisa ---
-            const current = currentCurrent; // Arus (A)
-            const capToFull = fullCap - remainingCap; // Kapasitas yang diperlukan untuk penuh (Ah)
-
-            let timeRemainingText;
-            let timeInHours = 0;
-
-            if (current === 0 || Math.abs(current) < 0.1) {
-                timeRemainingText = "Diam";
-            } else if (current > 0) { // Pengisian (Charging)
-                // Waktu untuk Penuh = Kapasitas yang diperlukan / Arus
-                timeInHours = capToFull / current;
-                timeRemainingText = `Penuh dalam: ${formatTimeRemaining(timeInHours)}`;
-            } else { // Pengurasan (Discharging)
-                // Waktu untuk Habis = Kapasitas yang tersisa / Abs(Arus)
-                timeInHours = remainingCap / Math.abs(current);
-                timeRemainingText = `Habis dalam: ${formatTimeRemaining(timeInHours)}`;
-            }
-            timeRemainingElement.textContent = timeRemainingText;
-
-
-            // --- 4. Update Parameter Detail Tambahan ---
-            extraParametersContainer.innerHTML = ''; // Kosongkan container
+            // --- 5. Update Parameter Detail Tambahan (Menggunakan SVG) ---
+            let extraHtml = '';
+            
             ALL_DATA_MAP.filter(d => d.showInExtra).forEach(dataInfo => {
                 const value = values[dataInfo.index];
-                let formattedValue = '';
+                let formattedValue;
                 let displayUnit = dataInfo.unit;
-                let bgColor = document.body.classList.contains('dark') ? 'bg-gray-800' : 'bg-white';
+                let title = dataInfo.label;
+                let bgColor = document.body.classList.contains('dark') ? 'bg-gray-700' : 'bg-gray-50'; 
+                let symbolSvg = SVG_ICONS[dataInfo.iconKey]; // Ambil SVG berdasarkan kunci
                 let symbolColor = 'text-primary';
-                
-                // Format khusus untuk Suhu, Kesehatan, dan Relay
+
                 if (dataInfo.label.includes('Suhu')) {
                     formattedValue = value.toFixed(1);
                     symbolColor = 'text-orange-500';
-                } else if (dataInfo.label.includes('Kesehatan')) {
+                } else if (dataInfo.label.includes('Kesehatan') || dataInfo.label === 'SOH') {
                     formattedValue = value.toFixed(2);
                     symbolColor = 'text-red-500';
                 } else if (dataInfo.label.includes('Relay')) {
@@ -1000,46 +1308,43 @@
                     displayUnit = '';
                     symbolColor = (value === 1.0) ? 'text-accent' : 'text-gray-400';
                     if (value === 1.0) {
-                        // Gunakan kelas warna untuk status box yang sudah dimodifikasi di CSS
-                        bgColor = document.body.classList.contains('dark') ? 'bg-green-900' : 'bg-green-50'; 
+                        bgColor = 'bg-green-50'; 
                     } else {
-                        bgColor = document.body.classList.contains('dark') ? 'bg-gray-700' : 'bg-gray-100';
+                        bgColor = document.body.classList.contains('dark') ? 'bg-gray-700' : 'bg-gray-50';
                     }
                 } else {
                     formattedValue = value.toFixed(2);
                 }
-
-                const cardHtml = `
-                    <div class="p-4 rounded-lg dashboard-card border-b-2 border-gray-200 dark:border-gray-700 ${bgColor}">
-                        <p class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">${dataInfo.label}</p>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xl ${symbolColor}">${SVG_ICONS[dataInfo.iconKey]}</span>
-                            <p class="text-xl font-bold text-gray-900 dark:text-gray-50">${formattedValue} <span class="text-base font-normal">${displayUnit}</span></p>
+                
+                const cardBg = document.body.classList.contains('dark') ? 'bg-gray-800' : 'bg-white';
+                
+                extraHtml += `
+                    <div class="p-4 rounded-lg border border-gray-300 ${bgColor} dark:border-gray-600">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="w-5 h-5 ${symbolColor}">
+                                ${symbolSvg}
+                            </span>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">${title}</p>
                         </div>
+                        <p class="text-xl font-bold text-gray-800 dark:text-gray-100">${formattedValue} <span class="text-base font-normal text-gray-400 dark:text-gray-500">${displayUnit}</span></p>
                     </div>
                 `;
-                extraParametersContainer.insertAdjacentHTML('beforeend', cardHtml);
             });
-            
-            // --- 5. Logic Safety/Warning Status ---
+
+            extraParametersContainer.innerHTML = extraHtml;
+
+
+            // --- 6. Update Status Keselamatan ---
+            let safetyMsg = "Semua parameter dalam batas aman.";
+            let safetyClass = 'bg-green-100 text-green-600 border-green-400'; 
             let statusText = 'Normal';
-            let safetyMsg = 'Semua parameter dalam batas aman.';
-            let safetyClass = 'bg-green-100 text-green-600 border-green-400';
-            
-            if (currentTotalVoltage > 13.5) {
-                safetyMsg = `Tegangan Total (${currentTotalVoltage.toFixed(2)}V) terlalu tinggi!`;
-                safetyClass = 'bg-red-100 text-red-700 border-red-400';
-                statusText = 'Bahaya!';
-            } else if (maxTemp > 50.0) {
-                safetyMsg = `Suhu maksimum baterai (${maxTemp.toFixed(1)}°C) terlalu tinggi!`;
-                safetyClass = 'bg-red-100 text-red-700 border-red-400';
-                statusText = 'Bahaya!';
-            } else if (deltaV > 100 && totalActiveCells >= 2) {
-                 safetyMsg = `Delta Tegangan Sel (${Math.round(deltaV)}mV) terlalu besar! Membutuhkan balancing.\r\n`;
-                 safetyClass = 'bg-yellow-200 text-yellow-700 border-yellow-400';
-                 statusText = 'Peringatan!';
-            } else if (currentTotalVoltage < 9.0 && currentTotalVoltage > 1.0) {
-                safetyMsg = `Tegangan Total (${currentTotalVoltage.toFixed(2)}V) terlalu rendah! Perlu diisi ulang.\r\n`;
+
+            if (maxTemp > 50) {
+                 safetyMsg = "PERINGATAN: Suhu Tinggi Terdeteksi! Melebihi 50°C.";
+                 safetyClass = 'bg-red-100 text-red-700 border-red-400';
+                 statusText = 'Bahaya!';
+            } else if (deltaV > 150) {
+                 safetyMsg = "PERINGATAN: Delta Voltage Sangat Tinggi! Balancing diperlukan.";
                  safetyClass = 'bg-yellow-200 text-yellow-700 border-yellow-400';
                  statusText = 'Peringatan!';
             }
@@ -1063,268 +1368,6 @@
         }
 
 
-        // --- Logic Agregasi dan Grafik (Diubah untuk Firebase) ---
-
-        let selectedPeriod = '1h'; // Default
-
-        /**
-         * Mengubah data log mentah menjadi data yang diagregasi untuk grafik Wh.
-         * @param {Array<Object>} logs - Array log Firebase { timestamp, power_W }.
-         * @param {number} durationMs - Total durasi periode dalam milidetik.
-         * @param {number} numPoints - Jumlah titik data (bins) yang diinginkan.
-         */
-        function aggregateEnergyData(logs, durationMs, numPoints) {
-            if (logs.length === 0 || numPoints === 0) {
-                return { 
-                    labels: Array(numPoints).fill('N/A'), 
-                    chargeData: Array(numPoints).fill(0), 
-                    dischargeData: Array(numPoints).fill(0), 
-                    totalChargeWh: 0, 
-                    totalDischargeWh: 0 
-                };
-            }
-
-            // Tentukan ukuran setiap bin (interval waktu)
-            const binDurationMs = durationMs / numPoints;
-            const now = Date.now();
-            const startTime = now - durationMs;
-
-            // Inisialisasi array untuk setiap bin
-            const chargeBins = Array(numPoints).fill(0);
-            const dischargeBins = Array(numPoints).fill(0);
-            const labels = [];
-            let totalChargeWh = 0;
-            let totalDischargeWh = 0;
-            
-            // Log interval 10 detik = 10 / 3600 jam (karena LOG_INTERVAL_MS = 10000)
-            const timeIntervalHours = LOG_INTERVAL_MS / (1000 * 3600); 
-
-            // 1. Agregasi data log ke dalam bin yang sesuai
-            logs.forEach(log => {
-                // Semua log dari Firebase query sudah dalam periode yang diminta
-                const power = log.power_W;
-
-                // Hitung indeks bin
-                let binIndex = Math.floor((log.timestamp - startTime) / binDurationMs); 
-
-                // Batasi indeks agar tidak melebihi batas (misalnya jika ada log yang sedikit terlambat)
-                if (binIndex >= numPoints) {
-                    binIndex = numPoints - 1;
-                } else if (binIndex < 0) {
-                    // Ini seharusnya tidak terjadi jika query Firebase benar
-                    return; 
-                }
-
-                // Wh dihitung dari Power (Watt) * Interval Waktu (Jam)
-                const wh = Math.abs(power) * timeIntervalHours;
-
-                if (power > 0.1) {
-                    chargeBins[binIndex] += wh;
-                    totalChargeWh += wh;
-                } else if (power < -0.1) { // Discharge
-                    dischargeBins[binIndex] += wh;
-                    totalDischargeWh += wh;
-                }
-            });
-
-            // 2. Buat label yang bermakna
-            for (let i = 0; i < numPoints; i++) {
-                const binStartTimestamp = startTime + (i * binDurationMs);
-                const date = new Date(binStartTimestamp);
-                
-                let label;
-                if (durationMs <= 3600 * 1000 * 6) { // 6 jam atau kurang: tampilkan waktu (HH:MM)
-                    label = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                } else if (durationMs <= 3600 * 1000 * 24 * 7) { // 7 hari atau kurang: tampilkan hari dan waktu (D HH:MM)
-                     label = date.toLocaleTimeString('id-ID', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-                } else { // Lebih dari 7 hari: tampilkan tanggal (DD/MM)
-                    label = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
-                }
-                labels.push(label);
-            }
-
-            return {
-                labels: labels,
-                chargeData: chargeBins,
-                // Discharge diplot sebagai nilai NEGATIF untuk bar chart dual-direction
-                dischargeData: dischargeBins.map(d => -d), 
-                totalChargeWh: totalChargeWh,
-                totalDischargeWh: totalDischargeWh
-            };
-        }
-
-
-        // FUNGSI INI DIUBAH UNTUK MENGAMBIL DATA DARI FIREBASE (BARU)
-        async function fetchAndRenderGraphs(period) {
-            const config = PERIOD_CONFIG[period];
-            if (!config) return;
-
-            chartStatusElement.textContent = `Memuat data Power ${config.label} dari Firebase...`;
-
-            try {
-                const durationMs = config.durationMs;
-                const numPoints = config.points;
-                const startTime = Date.now() - durationMs;
-                
-                // 1. Ambil data dari Firebase Realtime Database
-                // Menggunakan query order by 'timestamp' dan startAt untuk membatasi waktu
-                const snapshot = await powerLogsRef
-                    .orderByChild('timestamp')
-                    // Firebase menggunakan angka (Unix timestamp) untuk query
-                    .startAt(startTime) 
-                    .once('value'); 
-                    
-                // 2. Ubah data objek Firebase menjadi array log
-                const allLogs = [];
-                snapshot.forEach(childSnapshot => {
-                    // childSnapshot.val() mengembalikan { timestamp: X, power_W: Y }
-                    allLogs.push(childSnapshot.val());
-                });
-                
-                const filteredLogs = allLogs; // Data sudah difilter oleh query Firebase
-                
-                // 3. Panggil fungsi agregasi (tidak berubah)
-                const aggregatedData = aggregateEnergyData(filteredLogs, durationMs, numPoints);
-                
-                if (filteredLogs.length === 0) {
-                    chartStatusElement.textContent = `Tidak ada data Power yang dicatat di Firebase dalam ${config.label}.`;
-                } else {
-                    chartStatusElement.textContent = `Data ${filteredLogs.length} log dari Firebase, diagregasi menjadi ${numPoints} titik (${config.label}).`;
-                }
-
-                renderEnergyCharts(aggregatedData, config.label);
-
-            } catch (error) {
-                console.error("Gagal mengambil/memproses data grafik Wh dari Firebase:", error);
-                chartStatusElement.textContent = `GAGAL memuat grafik dari Firebase: ${error.message}`;
-            }
-        }
-
-        function selectPeriod(period) {
-            document.querySelectorAll('.period-button').forEach(btn => {
-                btn.classList.remove('period-active');
-            });
-            document.getElementById(`period-${period}`).classList.add('period-active');
-            selectedPeriod = period;
-            fetchAndRenderGraphs(selectedPeriod);
-        }
-
-        // --- Logic Pindah Tema (Light/Dark Mode) ---
-
-        function updateChartColors(isDark) {
-            // Gunakan instance chart tunggal
-            if (!whChart) return; 
-
-            // Tentukan warna teks dan grid berdasarkan mode
-            const textColor = isDark ? '#f3f4f6' : '#1f2937'; // gray-100 atau gray-800
-            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'; 
-
-            // Update warna untuk chart tunggal
-            whChart.options.plugins.legend.labels.color = textColor;
-            whChart.options.scales.x.ticks.color = textColor;
-            whChart.options.scales.y.ticks.color = textColor;
-            whChart.options.scales.y.title.color = textColor;
-            whChart.options.scales.y.grid.color = gridColor;
-            whChart.update(); 
-        }
-
-        /**
-         * MERENDER SATU GRAFIK BATANG untuk CHARGE (Positif) dan DISCHARGE (Negatif).
-         */
-        function renderEnergyCharts(data, periodLabel) {
-            // Update ringkasan angka global
-            totalChargeWhElement.textContent = `${data.totalChargeWh.toFixed(3)} Wh`;
-            totalDischargeWhElement.textContent = `${data.totalDischargeWh.toFixed(3)} Wh`;
-
-            const ctx = document.getElementById('whCombinedCanvas').getContext('2d');
-
-            // Hancurkan instans yang ada
-            if (whChart) whChart.destroy();
-
-            const isDark = document.body.classList.contains('dark');
-            const textColor = isDark ? '#f3f4f6' : '#1f2937';
-            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'; 
-
-            // Data Discharge sudah dibuat NEGATIF di aggregateEnergyData.
-            whChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.labels,
-                    datasets: [
-                        {
-                            label: 'Charge (Energi Masuk)',
-                            data: data.chargeData, // Nilai POSITIF
-                            backgroundColor: 'rgba(16, 185, 129, 0.8)', // Hijau
-                            borderColor: 'rgba(16, 185, 129, 1)',
-                            borderWidth: 1,
-                        },
-                        {
-                            label: 'Discharge (Energi Keluar)',
-                            data: data.dischargeData, // Nilai NEGATIF dari aggregateEnergyData
-                            backgroundColor: 'rgba(239, 68, 68, 0.8)', // Merah
-                            borderColor: 'rgba(239, 68, 68, 1)',
-                            borderWidth: 1,
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false, // Penting untuk container h-96
-                    plugins: {
-                        legend: {
-                            display: true, // Tampilkan legend untuk Charge dan Discharge
-                            labels: {
-                                color: textColor
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = Math.abs(context.parsed.y).toFixed(3);
-                                    return `${context.dataset.label}: ${value} Wh`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            stacked: true, // Tumpuk bar charge dan discharge (opsional, tergantung preferensi)
-                            grid: {
-                                display: false // Sembunyikan grid vertikal
-                            },
-                            ticks: {
-                                color: textColor,
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        },
-                        y: {
-                            stacked: true, // Penting untuk bar chart dua arah
-                            title: {
-                                display: true,
-                                text: 'Energi (Wh)',
-                                color: textColor
-                            },
-                            grid: {
-                                color: gridColor,
-                            },
-                            ticks: {
-                                color: textColor,
-                                // Format label Y-axis untuk menghilangkan tanda minus pada discharge
-                                callback: function(value, index, ticks) {
-                                    return Math.abs(value);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            updateChartColors(isDark); // Pastikan warna sudah benar saat inisialisasi
-        }
-
-
-        // --- Inisialisasi Aplikasi ---
-
         document.addEventListener('DOMContentLoaded', async () => {
             // Muat tema sebelum memuat data
             loadTheme(); 
@@ -1332,18 +1375,9 @@
             const initialValues = Array(17).fill(0.0);
             updateDashboard(initialValues);
             
-            // Muat grafik awal dari Firebase
+            // Muat grafik awal dari localStorage
             await fetchAndRenderGraphs(selectedPeriod);
-            
-            // Set event listeners untuk tombol periode
-            document.getElementById('period-1h').addEventListener('click', () => selectPeriod('1h'));
-            document.getElementById('period-6h').addEventListener('click', () => selectPeriod('6h'));
-            document.getElementById('period-12h').addEventListener('click', () => selectPeriod('12h'));
-            document.getElementById('period-24h').addEventListener('click', () => selectPeriod('24h'));
-            document.getElementById('period-7d').addEventListener('click', () => selectPeriod('7d'));
-            document.getElementById('period-30d').addEventListener('click', () => selectPeriod('30d'));
         });
-
     </script>
 </body>
 </html>
