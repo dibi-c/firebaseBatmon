@@ -702,7 +702,45 @@ function formatTime(hours) {
                 }
             }
         }
+
+
+let wakeLock = null;
+
+const requestWakeLock = async () => {
+  try {
+    // Meminta Wake Lock
+    wakeLock = await navigator.wakeLock.request('screen');
+    console.log('Wake Lock Diaktifkan: Layar akan tetap menyala.');
+
+    // Menambahkan event listener untuk status rilis otomatis
+    wakeLock.addEventListener('release', () => {
+      console.log('Wake Lock Dirilis: Layar dapat mati kembali.');
+    });
+
+  } catch (err) {
+    // Tangani error jika gagal (misalnya, izin ditolak)
+    console.error(`Gagal mendapatkan Wake Lock: ${err.name}, ${err.message}`);
+  }
+};
+
+const releaseWakeLock = () => {
+    if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+        console.log('Wake Lock Manual Dirilis.');
+    }
+}
+
+// Untuk demonstrasi, Anda bisa memicu ini melalui tombol:
+// document.getElementById('activate-button').addEventListener('click', requestWakeLock);
+
+// Atau panggil segera setelah interaksi pengguna pertama:
+// requestWakeLock();
+
+
+        
         function onDisconnected() {
+            wakeLock.release();
             if (requestInterval) {
                 clearInterval(requestInterval);
                 requestInterval = null;
@@ -733,8 +771,11 @@ function formatTime(hours) {
             minPower = Infinity;
             maxPower = -Infinity;
             minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
+
+            
         }
 
+        
         // --- Logic Koneksi Bluetooth (connectBluetooth, disconnectBluetooth) ---
         async function connectBluetooth() {
             if (!navigator.bluetooth) {
@@ -793,7 +834,9 @@ function formatTime(hours) {
                 minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
                 
                 requestInterval = setInterval(sendRequest, 1000);
-                
+
+                // PENTING: Panggil requestWakeLock() setelah koneksi berhasil (karena ini dipicu tombol, ini memenuhi syarat user gesture)
+                 await requestWakeLock();
                 // Setelah koneksi berhasil, segera muat grafik untuk periode default
                 await fetchAndRenderGraphs(selectedPeriod);
 
@@ -1181,38 +1224,6 @@ function renderEnergyCharts(data, periodLabel) {
     updateChartColors(document.body.classList.contains('dark'));
 }
 
-let wakeLock = null;
-
-const requestWakeLock = async () => {
-  try {
-    // Meminta Wake Lock
-    wakeLock = await navigator.wakeLock.request('screen');
-    console.log('Wake Lock Diaktifkan: Layar akan tetap menyala.');
-
-    // Menambahkan event listener untuk status rilis otomatis
-    wakeLock.addEventListener('release', () => {
-      console.log('Wake Lock Dirilis: Layar dapat mati kembali.');
-    });
-
-  } catch (err) {
-    // Tangani error jika gagal (misalnya, izin ditolak)
-    console.error(`Gagal mendapatkan Wake Lock: ${err.name}, ${err.message}`);
-  }
-};
-
-const releaseWakeLock = () => {
-    if (wakeLock) {
-        wakeLock.release();
-        wakeLock = null;
-        console.log('Wake Lock Manual Dirilis.');
-    }
-}
-
-// Untuk demonstrasi, Anda bisa memicu ini melalui tombol:
-// document.getElementById('activate-button').addEventListener('click', requestWakeLock);
-
-// Atau panggil segera setelah interaksi pengguna pertama:
-// requestWakeLock();
 
        
 
@@ -1220,8 +1231,6 @@ const releaseWakeLock = () => {
         function updateDashboard(values) {
 
              kirimDataKeFirebase();
-             // Jalankan fungsi `logAktivitas` setiap 1000 milidetik (1 detik)
-            requestWakeLock();
             
             const currentTotalVoltage = values[DATA_INDICES.TOTAL_VOLTAGE];
             const currentCurrent = values[DATA_INDICES.CURRENT];
@@ -1503,6 +1512,7 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
     </script>
 </body>
 </html>
+
 
 
 
