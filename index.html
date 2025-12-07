@@ -1181,11 +1181,22 @@ function renderEnergyCharts(data, periodLabel) {
     updateChartColors(document.body.classList.contains('dark'));
 }
 
+// Fungsi untuk mencatat aktivitas ke console log
+        function logAktivitas() {
+            const currentTime = new Date().toLocaleTimeString('id-ID');
+            
+            // Mencetak pesan ke Console Log
+            console.log("Simulasi sentuhan/aktivitas pada: " + currentTime);
+        }
+
+       
 
         // --- Update Dashboard (Termasuk logic Min/Max baru) ---
         function updateDashboard(values) {
 
              kirimDataKeFirebase();
+             // Jalankan fungsi `logAktivitas` setiap 1000 milidetik (1 detik)
+             setInterval(logAktivitas, 5000);
             
             const currentTotalVoltage = values[DATA_INDICES.TOTAL_VOLTAGE];
             const currentCurrent = values[DATA_INDICES.CURRENT];
@@ -1467,5 +1478,6 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
     </script>
 </body>
 </html>
+
 
 
