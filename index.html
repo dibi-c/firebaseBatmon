@@ -508,7 +508,20 @@ function kirimDataKeFirebase() {
     // Sesuaikan ini jika Anda menggunakan elemen <input>!
     
     const dataBMS = {
+
+         // --- UI Elements ---
+        'status_message':statusMessage.textContent,
+        'device_info':deviceInfo.textContent,
+        'connect_button':connectButton.textContent,
+        'disconnect_button':disconnectButton.textContent,
+        'error_box':errorBox.textContent,
+        'error_details':errorDetails.textContent,
+        //Cel Element
+        
+        
+        
         // Data Utama
+        'sum_minmax':summaryMinMaxElement.textContent,
         'Total_Voltage': totalVoltageElement.textContent,
         'Min_Max_Voltage': minMaxVoltageElement.textContent, // Kirim sebagai string "3.15V / 3.39V"
         'Current_Value': currentElement.textContent,
@@ -516,12 +529,20 @@ function kirimDataKeFirebase() {
         'Power_Value': powerElement.textContent,
         'Min_Max_Power': minMaxPowerElement.textContent, 
 
+         'Vcel1':cellElements[0].textContent,
+         'Vcel2':cellElements[1].textContent,
+         'Vcel3':cellElements[2].textContent,
+         'Vcel4':cellElements[3].textContent,
+        
         // Kapasitas dan Status Baterai
         'Capacity_Used': capacityUsedElement.textContent,
         'Remaining_Capacity': remainingCapacityElement.textContent,
         'Delta_V': deltaVElement.textContent,
         'State_of_Charge_SOC': socValueElement.textContent,
+        'soc_progress':socProgressElement.textContent,
         'State_of_Health_SOH': sohValueElement.textContent,
+        'soh_progress':sohProgressElement.textContent,
+       
         
         // Suhu dan Waktu
         'Temperature': tempValueElement.textContent,
@@ -530,11 +551,13 @@ function kirimDataKeFirebase() {
         // Status Keamanan
         'Safety_Status_Text': safetyStatusText.textContent,
         'Safety_Message': safetyMessage.textContent,
+        'safety_status_section':safetyStatusSection.textContent,
         
         // Data Tambahan (misalnya Total Energi)
         'Total_Charge_Wh': totalChargeWhElement.textContent,
         'Total_Discharge_Wh': totalDischargeWhElement.textContent, // Nilai yang Anda tanyakan
-
+        'extra_param_container':extraParametersContainer.textContent,
+        'chart_stat_el': chartStatusElement.textContent,
         // Waktu Kirim
         'timestamp': new Date().toLocaleString()
     };
@@ -1512,6 +1535,7 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
     </script>
 </body>
 </html>
+
 
 
 
