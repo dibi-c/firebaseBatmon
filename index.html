@@ -1108,7 +1108,7 @@
                 if (requestInterval) {
                     clearInterval(requestInterval);
                 }
-                requestInterval = setInterval(sendRequest, 100); 
+                requestInterval = setInterval(sendRequest, 1000); 
 
                 // *** PERUBAHAN: Kirim notif ke Firebase saat terhubung ***
                 logNotificationToFirebase('BLUETOOTH_CONNECTED', 'Koneksi Bluetooth berhasil. Mulai menerima data.');
@@ -1599,3 +1599,4 @@
     </script>
 </body>
 </html>
+
