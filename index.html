@@ -220,7 +220,9 @@
             </div>
         </header>
         <div class="flex justify-between items-center mb-4">
+             <p id="wakelock-status" class="text-xs text-gray-500 dark:text-gray-400">Wakelock Off</p>
              <p id="firestore-status" class="text-xs text-gray-500 dark:text-gray-400">Status DB: Penyimpanan Lokal (localStorage) Aktif.</p>
+            
              <button id="upload-logs-button" onclick="uploadAllLogsToFirebase()" class="text-xs minimal-connect-btn bg-purple-500 text-white hover:bg-purple-600 transition disabled:opacity-50">
                 Upload Log ke Firebase
             </button>
@@ -509,7 +511,54 @@
 
         
         
+// --- FUNGSI BARU UNTUK WAKELOCK (Menjaga Layar Tetap Menyala) ---
 
+// Variabel global untuk menyimpan objek wakelock
+let wakeLock = null;
+
+/**
+ * Mengaktifkan Screen Wake Lock (menjaga layar tetap menyala).
+ */
+async function acquireWakeLock() {
+    // Cek apakah browser mendukung API ini
+    if ('wakeLock' in navigator) {
+        try {
+            // Hanya minta lock jika belum ada yang aktif
+            if (!wakeLock) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wakelock berhasil diaktifkan.');
+                document.getElementById('wakelock-status').textContent = '✅ Wakelock Aktif';
+
+                // Tambahkan event listener untuk mengaktifkan kembali wakelock 
+                // jika dilepas otomatis oleh browser (misalnya, saat beralih tab)
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wakelock dilepas secara otomatis oleh browser.');
+                    wakeLock = null; // Setel ulang variabel
+                   // document.getElementById('wakelock-status').textContent = '⚪ Wakelock Mati';
+                });
+            }
+        } catch (err) {
+            // Tangani kegagalan (misalnya, pengguna menolak izin)
+            console.error(`Gagal mengaktifkan wakelock: ${err.name}, ${err.message}`);
+            document.getElementById('wakelock-status').textContent = '❌ Wakelock Gagal';
+        }
+    } else {
+        console.warn('Browser tidak mendukung Screen Wake Lock API.');
+       document.getElementById('wakelock-status').textContent = '🚫 Wakelock Tidak Didukung';
+    }
+}
+
+/**
+ * Melepaskan Screen Wake Lock (membiarkan layar mati normal).
+ */
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+        console.log('Wakelock berhasil dilepas.');
+        document.getElementById('wakelock-status').textContent = '⚪ Wakelock Mati';
+    }
+}
         // --- Utility Functions (formatTime, calculateChecksum, parseData, sendRequest, handleNotifications, onDisconnected) ---
         
 
@@ -757,7 +806,6 @@ function formatTime(hours) {
                 
                 await rxCharacteristic.startNotifications();
                 rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
-                
                 statusMessage.textContent = "Terkoneksi! Permintaan data dimulai (1Hz).";
                 connectButton.disabled = true;
                 disconnectButton.disabled = false;
@@ -792,8 +840,10 @@ function formatTime(hours) {
                     requestInterval = null;
                 }
             }
+            acquireWakeLock();
         }
         function disconnectBluetooth() {
+            releaseWakeLock();
             if (device && device.gatt.connected) {
                 device.gatt.disconnect();
             } else {
@@ -1028,17 +1078,41 @@ function formatTime(hours) {
     // di HTML dan CSS, jadi tidak perlu diubah di sini.
 }
 
+
+        // --- Definisikan SVG di Global Scope (atau di file terpisah) ---
+
+const svgMoon = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+    </svg>
+`;
+
+const svgSun = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+`;
+
+        
         function applyTheme(isDark) {
             const body = document.body;
             
             if (isDark) {
                 body.classList.add('dark');
                 // Mode Gelap AKTIF -> Tampilkan ikon Bulan (UNICODE)
-                if (themeIcon) themeIcon.textContent = '🌙'; 
+               if (themeIcon) themeIcon.innerHTML = svgMoon;
             } else {
                 body.classList.remove('dark');
                 // Mode Terang AKTIF -> Tampilkan ikon Matahari (UNICODE)
-                if (themeIcon) themeIcon.textContent = '☀️'; 
+                if (themeIcon) themeIcon.innerHTML = svgSun;
             }
             
             // Perbarui warna chart agar sesuai dengan tema baru
@@ -1558,7 +1632,83 @@ function renderEnergyCharts(data, periodLabel) {
                 uploadLogsButton.textContent = 'Upload Log ke Firebase';
             }
         }
+
+        /**
+ * Mengunggah semua data log historis dari localStorage ke node /history_logs di Firebase
+ * secara otomatis, tanpa konfirmasi pengguna (alert/confirm).
+ * * @returns {Promise<number>} Promise yang berisi jumlah log yang diunggah jika sukses.
+ */
+async function autoUploadLogsToFirebase() {
+    const firestoreStatus = document.getElementById('firestore-status');
+    const logs = getLocalLogs();
+
+    if (!firebaseDB) {
+        const errorMsg = "Firebase belum diinisialisasi atau gagal. Upload otomatis dibatalkan.";
+        console.error(errorMsg);
+        firestoreStatus.textContent = `Status DB: GAGAL. ${errorMsg}`;
+        // Lempar error agar pemanggil tahu bahwa proses gagal
+        throw new Error(errorMsg); 
+    }
+    
+    if (logs.length === 0) {
+        console.log("Tidak ada data log di penyimpanan lokal untuk diunggah secara otomatis.");
+        // Beri tahu pemanggil bahwa tidak ada log
+        return 0; 
+    }
+
+    console.log(`Memulai pengunggahan otomatis ${logs.length} entri log historis ke Firebase...`);
+    firestoreStatus.textContent = 'Status DB: Mengunggah log historis secara otomatis...';
+
+    // Membuat objek logs yang dikunci oleh timestamp untuk Realtime Database
+    const logsObject = logs.reduce((acc, log) => {
+        // Menggunakan timestamp sebagai kunci
+        acc[log.timestamp] = log; 
+        return acc;
+    }, {});
+    
+    try {
+        // Tunggu hingga operasi set() ke Firebase selesai
+        await firebaseDB.ref('history_logs').set(logsObject);
         
+        console.log(`[SUCCESS] Sukses mengunggah ${logs.length} entri log historis secara otomatis.`);
+        
+        // Perbarui status UI
+        firestoreStatus.textContent = `Status DB: Upload log historis sukses otomatis (${logs.length} entri).`;
+
+        // Kembalikan jumlah log yang diunggah
+        return logs.length; 
+
+    } catch (error) {
+        console.error("[ERROR] Gagal mengunggah log historis ke Firebase secara otomatis:", error);
+        
+        // Perbarui status UI dengan pesan error
+        const errorDetail = error.message ? error.message.substring(0, 50) : "Kesalahan tidak diketahui";
+        firestoreStatus.textContent = `Status DB: GAGAL mengunggah log historis otomatis: ${errorDetail}...`;
+        
+        // Lempar error agar pemanggil (jika ada) dapat menanganinya
+        throw error;
+    }
+}
+
+        // --- Fungsi Pembungkus yang Aman ---
+async function startAutoUploadInterval() {
+    // Wakelock (opsional) bisa ditempatkan di sini jika Anda ingin menjamin layar tetap menyala
+    // selama proses upload terjadwal, tetapi ini dapat mengganggu pengalaman pengguna.
+    
+    try {
+        const count = await autoUploadLogsToFirebase();
+        if (count > 0) {
+            console.log(`Upload terjadwal selesai. ${count} entri terkirim.`);
+        }
+    } catch (error) {
+        // Log error, tetapi jangan menghentikan interval berikutnya
+        console.error("Upload terjadwal gagal. Akan dicoba lagi nanti.", error);
+    } finally {
+        // Panggil dirinya sendiri (rekursif) setelah 1 menit jeda.
+        // Ini HANYA terjadi setelah blok try/catch selesai.
+        setTimeout(startAutoUploadInterval, 1 * 60 * 1000); // 1 menit
+    }
+}
         // --- END FUNGSI BARU UNTUK FIREBASE ---
 
 
@@ -1571,7 +1721,12 @@ function renderEnergyCharts(data, periodLabel) {
             
             // Muat grafik awal dari localStorage
             await fetchAndRenderGraphs(selectedPeriod);
+
+          // MULAI interval upload otomatis setelah semua inisialisasi selesai
+          // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
+          startAutoUploadInterval();
         });
     </script>
 </body>
 </html>
+
