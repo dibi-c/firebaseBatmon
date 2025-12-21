@@ -353,7 +353,7 @@
         const UART_SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb'; 
         const TX_CHARACTERISTIC_UUID = '0000ffe2-0000-1000-8000-00805f9b34fb'; 
         const RX_CHARACTERISTIC_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb'; 
-        const EXPECTED_LENGTH = 70; 
+        const EXPECTED_LENGTH = 78; 
 
         // --- Variabel Global & Konstanta Lainnya ---
         let device = null;
@@ -404,7 +404,7 @@
             TEMP_1: 9, TEMP_2: 10, 
             CAP_USED: 11,
             SOH_1: 12, SOH_2: 13, 
-            STATUS_CHARGE: 14, STATUS_DISCHARGE: 15, SOH: 16,
+            STATUS_CHARGE: 14, STATUS_DISCHARGE: 15, SOH: 16, WHPOS: 17, WHNEG: 18,
         };
 
         // Definisi semua 16 data, menggunakan 'iconKey' untuk merujuk ke SVG_ICONS
@@ -613,7 +613,7 @@ function formatTime(hours) {
         
         function calculateChecksum(dataView) {
             let checksum = 0;
-            for (let i = 1; i <= 68; i++) {
+            for (let i = 1; i <= 76; i++) {
                 checksum ^= dataView.getUint8(i);
             }
             return checksum;
@@ -627,23 +627,23 @@ function formatTime(hours) {
 
             const startByte = dataView.getUint8(0);
             if (startByte !== 0xAA) {
-                errorDetails.textContent = `[Parsing Gagal] Start Byte salah: 0x${startByte.toString(17)}.`;
+                errorDetails.textContent = `[Parsing Gagal] Start Byte salah: 0x${startByte.toString(19)}.`;
                 errorBox.classList.remove('hidden');
                 return null;
             }
 
-            const receivedChecksum = dataView.getUint8(69);
+            const receivedChecksum = dataView.getUint8(77);
             const calculatedChecksum = calculateChecksum(dataView);
 
             if (receivedChecksum !== calculatedChecksum) {
-                errorDetails.textContent = `[Parsing Gagal] Checksum salah. Diterima: 0x${receivedChecksum.toString(17)}.`;
+                errorDetails.textContent = `[Parsing Gagal] Checksum salah. Diterima: 0x${receivedChecksum.toString(19)}.`;
                 errorBox.classList.remove('hidden');
                 return null;
             }
 
             const values = [];
             let offset = 1; 
-            for (let i = 0; i < 17; i++) {
+            for (let i = 0; i < 19; i++) {
                 const floatValue = dataView.getFloat32(offset, true);
                 values.push(floatValue);
                 offset += 4; 
@@ -1716,7 +1716,7 @@ async function startAutoUploadInterval() {
             // Muat tema sebelum memuat data
             loadTheme(); 
             
-            const initialValues = Array(17).fill(0.0);
+            const initialValues = Array(19).fill(0.0);
             updateDashboard(initialValues);
             
             // Muat grafik awal dari localStorage
@@ -1729,6 +1729,7 @@ async function startAutoUploadInterval() {
     </script>
 </body>
 </html>
+
 
 
 
