@@ -1527,7 +1527,7 @@ if (isChargeOff && isDischargeOff) {
                  safetyMsg = "PERINGATAN: Suhu Tinggi Terdeteksi! Melebihi 45°C.";
                  safetyClass = 'bg-red-100 text-red-700 border-red-400';
                  statusText = 'Bahaya!';
-            } else if (deltaV > 100) {
+            } else if (deltaV > 50) {
                  safetyMsg = "PERINGATAN: Delta Voltage Tinggi! Balancing diperlukan.";
                  safetyClass = 'bg-yellow-200 text-yellow-700 border-yellow-400';
                  statusText = 'Peringatan!';
@@ -1756,6 +1756,7 @@ async function startAutoUploadInterval() {
     </script>
 </body>
 </html>
+
 
 
 
