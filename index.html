@@ -353,7 +353,7 @@
         const UART_SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb'; 
         const TX_CHARACTERISTIC_UUID = '0000ffe2-0000-1000-8000-00805f9b34fb'; 
         const RX_CHARACTERISTIC_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb'; 
-        const EXPECTED_LENGTH = 78; 
+        const EXPECTED_LENGTH = 82; 
 
         // --- Variabel Global & Konstanta Lainnya ---
         let device = null;
@@ -394,7 +394,12 @@
             // Flash/Zap (Relay Pengisian) - Simbol petir untuk arus/listrik
             FLASH: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
             // Flame (Relay Pengurasan) - Simbol api untuk panas/discharge
-            FLAME: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5zM15 15.5A2.5 2.5 0 0 0 17.5 13c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5zM8.5 8.5A2.5 2.5 0 0 0 11 6c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5zM15 9.5A2.5 2.5 0 0 0 17.5 7c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5z"/></svg>'
+            FLAME: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5zM15 15.5A2.5 2.5 0 0 0 17.5 13c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5zM8.5 8.5A2.5 2.5 0 0 0 11 6c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5zM15 9.5A2.5 2.5 0 0 0 17.5 7c0-1.25-.75-2-2-2-1.25 0-2 1-2 2s1.5 2.5 2.5 2.5z"/></svg>',
+
+            // Opsi Alternatif: Battery Half dengan isi blok solid (lebih mudah terlihat)
+            BATTERY_HALF_SOLID: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"></rect><line x1="22" y1="11" x2="22" y2="13"></line><rect x="5" y="10" width="5" height="4" fill="currentColor" stroke="none"></rect></svg>',
+           // Alternatif: Bolt dengan lingkaran (sering digunakan untuk total energi/konsumsi)
+            ENERGY: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M13 6l-5 8h4v4l5-8h-4V6z"/></svg>'
         };
 
         // Pemetaan Index Data 
@@ -404,7 +409,7 @@
             TEMP_1: 9, TEMP_2: 10, 
             CAP_USED: 11,
             SOH_1: 12, SOH_2: 13, 
-            STATUS_CHARGE: 14, STATUS_DISCHARGE: 15, SOH: 16, WHPOS: 17, WHNEG: 18,
+            STATUS_CHARGE: 14, STATUS_DISCHARGE: 15, SOH: 16, WHPOS: 17, WHNEG: 18, CC: 19,
         };
 
         // Definisi semua 16 data, menggunakan 'iconKey' untuk merujuk ke SVG_ICONS
@@ -422,11 +427,18 @@
             { label: 'Suhu Baterai', unit: '°C', index: 9, showInExtra: true, iconKey: 'THERMOMETER', key: 'temp_battery' }, 
             { label: 'Suhu Mosfet', unit: '°C', index: 10, showInExtra: true, iconKey: 'THERMOMETER', key: 'temp_mosfet' }, 
             { label: 'Kapasitas Tersisa (Remaining)', unit: 'Ah', index: 11, showInExtra: false, key: 'capacity_remaining' },
-            { label: 'SOH Pengisian', unit: '%', index: 12, showInExtra: true, iconKey: 'HEART', key: 'soh_charge' },
-            { label: 'SOH Pengurasan', unit: '%', index: 13, showInExtra: true, iconKey: 'HEART', key: 'soh_discharge' },
+            { label: 'Kapasitas Pengisian', unit: 'Ah', index: 12, showInExtra: true, iconKey: 'BATTERY_HALF_SOLID', key: 'soh_charge' },
+            { label: 'Kapasitas Pengurasan', unit: 'Ah', index: 13, showInExtra: true, iconKey: 'BATTERY_HALF_SOLID', key: 'soh_discharge' },
             { label: 'Relay Pengisian', unit: '', index: 14, showInExtra: true, iconKey: 'FLASH', key: 'relay_charge_status' },
             { label: 'Relay Pengurasan', unit: '', index: 15, showInExtra: true, iconKey: 'FLAME', key: 'relay_discharge_status' },
+            
             { label: 'SOH (Rata-rata)', unit: '%', index: 16, showInExtra: false, key: 'soh_avg' },
+
+             // Parameter Tambahan (Menggunakan iconKey)
+            { label: 'Energy Masuk', unit: 'Wh', index: 17, showInExtra: true, iconKey: 'ENERGY' },
+            { label: 'Energy Keluar', unit: 'Wh', index: 18, showInExtra: true, iconKey: 'ENERGY' },
+            { label: 'Cycle Count', unit: 'CC', index: 19, showInExtra: true, iconKey: 'HEART' },
+            
         ];
         
         // --- KONFIGURASI GRAFIK WH BARU ---
@@ -613,7 +625,7 @@ function formatTime(hours) {
         
         function calculateChecksum(dataView) {
             let checksum = 0;
-            for (let i = 1; i <= 76; i++) {
+            for (let i = 1; i <= 80; i++) {
                 checksum ^= dataView.getUint8(i);
             }
             return checksum;
@@ -627,23 +639,23 @@ function formatTime(hours) {
 
             const startByte = dataView.getUint8(0);
             if (startByte !== 0xAA) {
-                errorDetails.textContent = `[Parsing Gagal] Start Byte salah: 0x${startByte.toString(19)}.`;
+                errorDetails.textContent = `[Parsing Gagal] Start Byte salah: 0x${startByte.toString(20)}.`;
                 errorBox.classList.remove('hidden');
                 return null;
             }
 
-            const receivedChecksum = dataView.getUint8(77);
+            const receivedChecksum = dataView.getUint8(81);
             const calculatedChecksum = calculateChecksum(dataView);
 
             if (receivedChecksum !== calculatedChecksum) {
-                errorDetails.textContent = `[Parsing Gagal] Checksum salah. Diterima: 0x${receivedChecksum.toString(19)}.`;
+                errorDetails.textContent = `[Parsing Gagal] Checksum salah. Diterima: 0x${receivedChecksum.toString(20)}.`;
                 errorBox.classList.remove('hidden');
                 return null;
             }
 
             const values = [];
             let offset = 1; 
-            for (let i = 0; i < 19; i++) {
+            for (let i = 0; i < 20; i++) {
                 const floatValue = dataView.getFloat32(offset, true);
                 values.push(floatValue);
                 offset += 4; 
@@ -1716,7 +1728,7 @@ async function startAutoUploadInterval() {
             // Muat tema sebelum memuat data
             loadTheme(); 
             
-            const initialValues = Array(19).fill(0.0);
+            const initialValues = Array(20).fill(0.0);
             updateDashboard(initialValues);
             
             // Muat grafik awal dari localStorage
@@ -1729,6 +1741,7 @@ async function startAutoUploadInterval() {
     </script>
 </body>
 </html>
+
 
 
 
