@@ -1934,23 +1934,6 @@ async function startAutoUploadInterval() {
 }
         // --- END FUNGSI BARU UNTUK FIREBASE ---
 
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Muat tema sebelum memuat data
-            loadTheme(); 
-            
-            const initialValues = Array(20).fill(0.0);
-            updateDashboard(initialValues);
-            
-            // Muat grafik awal dari localStorage
-            await fetchAndRenderGraphs(selectedPeriod);
-
-          // MULAI interval upload otomatis setelah semua inisialisasi selesai
-          // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
-          startAutoUploadInterval();
-        });
-
-
  function pindahKe(halaman) {
    // Cari baris ini dan ubah menjadi:
     const halUtama = document.querySelectorAll('header, section, #grafik-section, .flex.justify-between.items-center.mb-4');
@@ -2050,14 +2033,7 @@ function updateJamRealtime() {
     document.getElementById('full-date-text').textContent = now.toLocaleDateString('id-ID', options);
 }
 
-// Jalankan saat startup
-document.addEventListener('DOMContentLoaded', () => {
-    initNumbers();
-    updateJamRealtime();
-    setInterval(updateJamRealtime, 1000);
-    fetchWeatherByGPS();
-    setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
-});
+
 
 // Tambahkan update status bluetooth ke fungsi updateConnectionUI Anda
 function updateConnectionUI(message, deviceName = "") {
@@ -2077,8 +2053,6 @@ function updateConnectionUI(message, deviceName = "") {
         txt.classList.replace('text-yellow-400', 'text-gray-400');
     }
 }
-setInterval(updateJamRealtime, 1000);
-
 
 function toggleFullscreen() {
     const fsText = document.getElementById('fs-text');
@@ -2112,12 +2086,35 @@ document.addEventListener('fullscreenchange', () => {
         fsText.textContent = "Aktifkan Layar Penuh";
         fsText.classList.replace('text-red-500', 'text-gray-300');
     }
-});
+});        
 
 
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Muat tema sebelum memuat data
+            loadTheme(); 
+            
+            const initialValues = Array(20).fill(0.0);
+            updateDashboard(initialValues);
+            
+            // Muat grafik awal dari localStorage
+            await fetchAndRenderGraphs(selectedPeriod);
+
+          // MULAI interval upload otomatis setelah semua inisialisasi selesai
+          // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
+          startAutoUploadInterval();
+
+          initNumbers();
+          updateJamRealtime();
+          setInterval(updateJamRealtime, 1000);
+          fetchWeatherByGPS();
+          setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
+            
+        });
     </script>
 </body>
 </html>
+
 
 
 
