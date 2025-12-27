@@ -1528,7 +1528,7 @@ if (isChargeOff && isDischargeOff) {
     safetyMsg = "PERINGATAN: Suhu Tinggi Terdeteksi! Melebihi 45°C.";
     statusText = 'Bahaya!';
     isAnimate = true;
-} else if (deltaV > 10) {
+} else if (deltaV > 50) {
     safetyMsg = "PERINGATAN: Delta Voltage Tinggi! Balancing diperlukan.";
     statusText = 'Peringatan!';
     isAnimate = true;
@@ -1560,14 +1560,20 @@ if (statusText === 'SHORT CIRCUIT!') {
 
 // 3. Tambahkan Animasi dan Suara (Setelah warna ditentukan)
 if (isAnimate) {
-    safetyClass += ' animate-pulse'; // Tidak akan tertimpa lagi
+    safetyClass += ' animate-pulse';
     
     const alarm = document.getElementById('alarmSound');
     if (alarm) {
-        // Mainkan audio hanya untuk level Bahaya & Short Circuit agar tidak berisik
-        if (statusText === 'SHORT CIRCUIT!' || statusText === 'Bahaya!') {
-            alarm.play().catch(e => console.log("Audio diblokir browser, butuh klik user."));
-        }
+        // Coba mainkan suara
+        alarm.play().catch(error => {
+            // Jika gagal karena autoplay, tampilkan pesan di console agar Anda tahu
+            console.warn("Audio tertunda. Silakan klik di mana saja pada layar untuk mengaktifkan alarm suara.");
+            
+            // Opsional: Buat listener sekali klik untuk mengaktifkan audio yang tertunda
+            document.addEventListener('click', () => {
+                alarm.play();
+            }, { once: true });
+        });
     }
 }
 
@@ -1777,6 +1783,7 @@ async function startAutoUploadInterval() {
     </script>
 </body>
 </html>
+
 
 
 
