@@ -1559,21 +1559,34 @@ if (statusText === 'SHORT CIRCUIT!') {
 }
 
 // 3. Tambahkan Animasi dan Suara (Setelah warna ditentukan)
+// 3. Tambahkan Animasi dan Suara (Setelah warna ditentukan)
+const alarm = document.getElementById('alarmSound');
+
 if (isAnimate) {
     safetyClass += ' animate-pulse';
     
-    const alarm = document.getElementById('alarmSound');
     if (alarm) {
-        // Coba mainkan suara
-        alarm.play().catch(error => {
-            // Jika gagal karena autoplay, tampilkan pesan di console agar Anda tahu
-            console.warn("Audio tertunda. Silakan klik di mana saja pada layar untuk mengaktifkan alarm suara.");
-            
-            // Opsional: Buat listener sekali klik untuk mengaktifkan audio yang tertunda
-            document.addEventListener('click', () => {
-                alarm.play();
-            }, { once: true });
-        });
+        // SET LOOP KE TRUE agar suara tidak berhenti
+        alarm.loop = true; 
+
+        // HANYA JALANKAN PLAY JIKA ALARM SEDANG BERHENTI (agar tidak bentrok setiap detik)
+        if (alarm.paused) {
+            alarm.play().catch(error => {
+                console.warn("Audio tertunda. Silakan klik layar untuk mengaktifkan alarm.");
+                
+                // Listener sekali klik untuk mengaktifkan audio yang tertunda
+                document.addEventListener('click', () => {
+                    alarm.play();
+                }, { once: true });
+            });
+        }
+    }
+} else {
+    // JIKA KONDISI NORMAL: Matikan alarm dan hentikan loop
+    if (alarm) {
+        alarm.pause();
+        alarm.currentTime = 0; // Kembalikan ke detik awal
+        alarm.loop = false;
     }
 }
 
@@ -1783,6 +1796,7 @@ async function startAutoUploadInterval() {
     </script>
 </body>
 </html>
+
 
 
 
