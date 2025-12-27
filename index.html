@@ -174,6 +174,92 @@
         .dark .border-red-400 { border-color: #b91c1c !important; }
         .dark .border-yellow-400 { border-color: #b45309 !important; }
         .dark .border-green-400 { border-color: #065f46 !important; }
+
+
+
+:root {
+    --bg-dark: #000000;
+    --accent: #facc15; 
+    --secondary: #ffffff;
+}
+
+/* Jam Analog: Perbesar ukuran maksimalnya */
+.clock-container {
+    width: min(95vw, 90vh); /* Diubah dari 85vw/65vh agar lebih mepet ke tepi */
+    height: min(95vw, 90vh);
+}
+
+/* Jam Digital: Perbesar batas font maksimalnya */
+#time-digital {
+    font-size: clamp(5rem, 25vw, 15rem); /* Diubah dari 15vw ke 25vw agar lebih raksasa */
+    line-height: 1;
+}
+
+/* Modifikasi landscape agar tetap besar */
+@media (orientation: landscape) {
+    .clock-container {
+        width: min(70vw, 90vh); /* Diubah dari 50vw agar lebih dominan di mode landscape */
+        height: min(70vw, 90vh);
+    }
+}
+
+
+.hand {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    transform-origin: bottom;
+    border-radius: 20px;
+    transition: transform 0.5s cubic-bezier(0.4, 2.08, 0.55, 0.44);
+}
+
+
+/* Gaya Angka Jam tetap seperti sebelumnya */
+/* Angka Jam */
+.number {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: #facc15;
+    padding: 10px;
+}
+
+/* Jarum Merah */
+.hour-hand { width: 8px; height: 25%; background: #FFFFFF; z-index: 3; }
+.min-hand { width: 5px; height: 35%; background: #F3F702; z-index: 4; }
+.sec-hand { width: 3px; height: 42%; background: #F72F07; z-index: 5; }
+
+/* Info Cuaca & GPS */
+.weather-box {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 20px;
+}
+
+
+:fullscreen {
+    background-color: black;
+}
+
+/* Untuk Chrome/Safari */
+:-webkit-full-screen {
+    background-color: black;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Menghilangkan padding body khusus saat di halaman jam */
+body:has(#halaman-jam:not(.hidden)) {
+    padding: 0 !important;
+}
+
     </style>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -195,9 +281,63 @@
             }
         }
     </script>
+
+
+<div id="halaman-jam" class="hidden flex flex-col landscape:flex-row items-center justify-evenly min-h-screen bg-black overflow-hidden">
+    
+    <div class="flex-shrink-0">
+        <div class="clock-container shadow-[0_0_80px_rgba(255,0,0,0.2)] border-8 border-gray-900 rounded-full relative bg-black" onclick="toggleFullscreen()">
+            <div id="numbers-container" class="absolute inset-0"></div>
+            <div id="hour-hand" class="hand hour-hand"></div>
+            <div id="min-hand" class="hand min-hand"></div>
+            <div id="sec-hand" class="hand sec-hand"></div>
+            <div class="absolute top-1/2 left-1/2 w-5 h-5 bg-red-600 rounded-full -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg"></div>
+            
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left w-full landscape:w-auto">
+        
+        <div class="mb-2 flex items-center gap-2 px-4 py-1 rounded-full bg-gray-900">
+            <div id="dot-status" class="w-2 h-2 rounded-full bg-red-500"></div>
+            <span id="jam-status-message" class="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Disconnected</span>
+        </div>
+
+        <div class="flex items-baseline">
+            <h1 id="time-digital" class="font-black text-white tracking-tighter">00:00</h1>
+            <span id="time-seconds" class="text-3xl sm:text-5xl font-bold text-red-600 ml-2 italic">00</span>
+        </div>
+        
+        <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs sm:text-sm mt-2">SABTU, 25 MEI 2024</p>
+        
+        <div class="mt-6 flex items-center gap-6 bg-white/5 p-5 rounded-3xl border border-white/10 w-full">
+            <div id="weather-temp" class="text-5xl font-black text-yellow-400">--°</div>
+            <div class="border-l border-white/20 pl-6">
+                <p id="location-text" class="text-[10px] text-gray-500 uppercase">Searching GPS...</p>
+                <p id="weather-desc" class="text-base text-white font-medium italic">Loading...</p>
+            </div>
+
+     <div class="mt-4 w-full">
+    <button onclick="toggleFullscreen()" class="flex items-center justify-center gap-3 w-full bg-white/10 hover:bg-white/20 border border-white/20 py-3 rounded-2xl transition-all group">
+        <div id="fs-icon-container" class="text-red-500">
+            <svg id="icon-expand" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+        </div>
+        <span id="fs-text" class="text-xs font-bold tracking-widest text-gray-300 uppercase">Aktifkan Layar Penuh</span>
+    </button>
+</div>
+
+        </div>
+    </div>
+</div>
+
+
     <div id="background-overlay"></div>
     <div class="max-w-6xl mx-auto">
         <header class="flex justify-between items-center mb-6 p-3 rounded-lg bg-white dark:bg-gray-800 shadow-md border-b">
+
+
             <div id="status-display" class="text-sm font-medium text-gray-600 dark:text-gray-400">
                 <span id="status-message">Menunggu Koneksi Bluetooth...</span>
                 <span id="device-info" class="text-xs text-gray-400 dark:text-gray-600 block italic"></span>
@@ -346,6 +486,22 @@
             <p class="font-bold text-lg">⚠️ Kesalahan Protokol/Koneksi/Parsing:</p>
             <p id="error-details" class="text-sm mt-1"></p>
         </div>
+
+
+ 
+
+
+<nav class="flex space-x-2 mr-4 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+    <button id="btn-monitor" onclick="pindahKe('monitor')" 
+        class="text-xs font-bold px-4 py-1.5 rounded-md transition-all duration-300 bg-blue-500 text-white shadow-sm">
+        Monitor
+    </button>
+    <button id="btn-jam" onclick="pindahKe('jam')" 
+        class="text-xs font-bold px-4 py-1.5 rounded-md transition-all duration-300 text-gray-500 dark:text-gray-300">
+        Jam
+    </button>
+</nav>
+
     </div>
 
     <script src="chart.js"></script>
@@ -1793,6 +1949,172 @@ async function startAutoUploadInterval() {
           // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
           startAutoUploadInterval();
         });
+
+
+ function pindahKe(halaman) {
+   // Cari baris ini dan ubah menjadi:
+    const halUtama = document.querySelectorAll('header, section, #grafik-section, .flex.justify-between.items-center.mb-4');
+    const halJam = document.getElementById('halaman-jam');
+    const btnMonitor = document.getElementById('btn-monitor');
+    const btnJam = document.getElementById('btn-jam');
+
+    if (halaman === 'jam') {
+        // Sembunyikan Dashboard, Munculkan Jam
+        halUtama.forEach(el => el.classList.add('hidden'));
+        halJam.classList.remove('hidden');
+
+        // Ubah Warna Tombol Jam jadi Biru (Aktif)
+        btnJam.classList.add('bg-blue-500', 'text-white', 'shadow-sm');
+        btnJam.classList.remove('text-gray-500', 'dark:text-gray-300');
+
+        // Ubah Warna Tombol Monitor jadi Abu-abu (Pasif)
+        btnMonitor.classList.remove('bg-blue-500', 'text-white', 'shadow-sm');
+        btnMonitor.classList.add('text-gray-500', 'dark:text-gray-300');
+
+       
+    } else {
+
+
+        // Munculkan Dashboard, Sembunyikan Jam
+        halUtama.forEach(el => el.classList.remove('hidden'));
+        halJam.classList.add('hidden');
+
+        // Ubah Warna Tombol Monitor jadi Biru (Aktif)
+        btnMonitor.classList.add('bg-blue-500', 'text-white', 'shadow-sm');
+        btnMonitor.classList.remove('text-gray-500', 'dark:text-gray-300');
+
+        // Ubah Warna Tombol Jam jadi Abu-abu (Pasif)
+        btnJam.classList.remove('bg-blue-500', 'text-white', 'shadow-sm');
+        btnJam.classList.add('text-gray-500', 'dark:text-gray-300');
+    }
+}
+// 1. Inisialisasi Angka 1-12
+function initNumbers() {
+    const container = document.getElementById('numbers-container');
+    for (let i = 1; i <= 12; i++) {
+        const num = document.createElement('div');
+        num.className = 'number';
+        num.style.transform = `rotate(${i * 30}deg)`;
+        const span = document.createElement('span');
+        span.textContent = i;
+        span.style.display = 'inline-block';
+        span.style.transform = `rotate(-${i * 30}deg)`;
+        num.appendChild(span);
+        container.appendChild(num);
+    }
+}
+
+// 2. Fungsi Cuaca Berbasis GPS
+async function fetchWeatherByGPS() {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        
+        try {
+            // Mengambil data cuaca & nama lokasi kasar
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+            const data = await response.json();
+            
+            document.getElementById('weather-temp').textContent = Math.round(data.current_weather.temperature) + "°C";
+            document.getElementById('location-text').textContent = `GPS: ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+            document.getElementById('weather-desc').textContent = "Kondisi Saat Ini";
+        } catch (err) {
+            console.error("Gagal ambil cuaca");
+        }
+    });
+}
+
+// 3. Update Jam & Tanggal Lengkap
+function updateJamRealtime() {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const s = now.getSeconds();
+
+    // Analog (Jarum Merah)
+    document.getElementById('sec-hand').style.transform = `translateX(-50%) rotate(${(s/60)*360}deg)`;
+    document.getElementById('min-hand').style.transform = `translateX(-50%) rotate(${(m/60)*360}deg)`;
+    document.getElementById('hour-hand').style.transform = `translateX(-50%) rotate(${(h%12/12)*360 + (m/60)*30}deg)`;
+
+    // Digital Raksasa
+    document.getElementById('time-digital').textContent = 
+        `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    
+    // Detik (Ditampilkan terpisah agar ukuran bisa berbeda)
+    document.getElementById('time-seconds').textContent = String(s).padStart(2,'0');
+    
+    // Tanggal
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    document.getElementById('full-date-text').textContent = now.toLocaleDateString('id-ID', options);
+}
+
+// Jalankan saat startup
+document.addEventListener('DOMContentLoaded', () => {
+    initNumbers();
+    updateJamRealtime();
+    setInterval(updateJamRealtime, 1000);
+    fetchWeatherByGPS();
+    setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
+});
+
+// Tambahkan update status bluetooth ke fungsi updateConnectionUI Anda
+function updateConnectionUI(message, deviceName = "") {
+    // ... logika lama anda ...
+    
+    // Logika baru untuk halaman jam
+    const dot = document.getElementById('dot-status');
+    const txt = document.getElementById('text-status');
+    
+    if(message.includes("Terhubung")) {
+        dot.classList.replace('bg-red-500', 'bg-yellow-400');
+        txt.textContent = deviceName || "CONNECTED";
+        txt.classList.replace('text-gray-400', 'text-yellow-400');
+    } else {
+        dot.classList.replace('bg-yellow-400', 'bg-red-500');
+        txt.textContent = "DISCONNECTED";
+        txt.classList.replace('text-yellow-400', 'text-gray-400');
+    }
+}
+setInterval(updateJamRealtime, 1000);
+
+
+function toggleFullscreen() {
+    const fsText = document.getElementById('fs-text');
+    const iconExpand = document.getElementById('icon-expand');
+
+    if (!document.fullscreenElement) {
+        // MASUK FULLSCREEN
+        const el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        
+        // Update UI Tombol
+        fsText.textContent = "Matikan Layar Penuh";
+        fsText.classList.replace('text-gray-300', 'text-red-500');
+    } else {
+        // KELUAR FULLSCREEN
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        
+        // Update UI Tombol
+        fsText.textContent = "Aktifkan Layar Penuh";
+        fsText.classList.replace('text-red-500', 'text-gray-300');
+    }
+}
+
+// Tambahkan listener ini agar jika user tekan tombol 'ESC', teks tombol tetap sinkron
+document.addEventListener('fullscreenchange', () => {
+    const fsText = document.getElementById('fs-text');
+    if (!document.fullscreenElement && fsText) {
+        fsText.textContent = "Aktifkan Layar Penuh";
+        fsText.classList.replace('text-red-500', 'text-gray-300');
+    }
+});
+
+
     </script>
 </body>
 </html>
