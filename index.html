@@ -178,15 +178,21 @@
 
 
 :root {
-    --bg-dark: #000000;
-    --accent: #facc15; 
-    --secondary: #ffffff;
-}
+            --bg-dark: #000000;
+            --accent: #facc15; 
+            --secondary: #ffffff;
+            --clock-size: min(90vw, 75vh);
+        }
 
 /* Jam Analog: Perbesar ukuran maksimalnya */
 .clock-container {
-    width: min(95vw, 90vh); /* Diubah dari 85vw/65vh agar lebih mepet ke tepi */
-    height: min(95vw, 90vh);
+     width: var(--clock-size);
+            height: var(--clock-size);
+            border: 6px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            position: relative;
+            background: #050505;
+            flex-shrink: 0;
 }
 
 /* Jam Digital: Perbesar batas font maksimalnya */
@@ -217,21 +223,65 @@
 /* Gaya Angka Jam tetap seperti sebelumnya */
 /* Angka Jam */
 .number {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    text-align: center;
-    font-weight: 800;
-    font-size: clamp(2rem, 5vw, 3rem);
-    color: #facc15;
-    padding: 10px;
-}
+            position: absolute;
+            width: 100%; height: 100%;
+            text-align: center;
+            font-weight: 800;
+            font-size: calc(var(--clock-size) * 0.08);
+            padding: 1%;
+            color: var(--secondary);
+        }
 
 /* Jarum Merah */
-.hour-hand { width: 8px; height: 25%; background: #FFFFFF; z-index: 3; }
-.min-hand { width: 5px; height: 35%; background: #F3F702; z-index: 4; }
-.sec-hand { width: 3px; height: 42%; background: #F72F07; z-index: 5; }
+        .dot {
+            width: 6%; height: 6%;
+            background: var(--accent);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            box-shadow: 0 0 15px var(--accent);
+        }
+        .hour-hand { 
+            width: 3.5%; height: 26%; 
+            background: var(--accent); 
+            //margin-left: -1.75%; 
+            z-index: 15;
+        }
+        .min-hand { 
+            width: 2.5%; height: 38%; 
+            background: var(--secondary); 
+            //margin-left: -1.25%; 
+            z-index: 14; 
+        }
+        .sec-hand { 
+            width: 1%; height: 44%; 
+            background: #ef4444; 
+           // margin-left: -0.5%; 
+            z-index: 16; 
+        }
 
+        .glass-pill {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            padding: 0.6rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .fs-btn {
+            position: fixed;
+            top: 1.2rem;
+            right: 1.2rem;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 0.8rem;
+            border-radius: 12px;
+            cursor: pointer;
+        }
 /* Info Cuaca & GPS */
 .weather-box {
     background: rgba(255, 255, 255, 0.05);
@@ -284,10 +334,16 @@ body:has(#halaman-jam:not(.hidden)) {
 
 
 <div id="halaman-jam" class="hidden flex flex-col landscape:flex-row items-center justify-evenly min-h-screen bg-black overflow-hidden">
+
+   <button class="fs-btn" onclick="toggleFullscreen()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+    </button>
+
     
     <div class="flex-shrink-0">
         <div class="clock-container shadow-[0_0_80px_rgba(255,0,0,0.2)] border-8 border-gray-900 rounded-full relative bg-black" onclick="toggleFullscreen()">
             <div id="numbers-container" class="absolute inset-0"></div>
+            <div class="dot"></div>
             <div id="hour-hand" class="hand hour-hand"></div>
             <div id="min-hand" class="hand min-hand"></div>
             <div id="sec-hand" class="hand sec-hand"></div>
@@ -298,9 +354,9 @@ body:has(#halaman-jam:not(.hidden)) {
 
     <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left w-full landscape:w-auto">
         
-        <div class="mb-2 flex items-center gap-2 px-4 py-1 rounded-full bg-gray-900">
-            <div id="dot-status" class="w-2 h-2 rounded-full bg-red-500"></div>
-            <span id="jam-status-message" class="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Disconnected</span>
+        <div id="status-display" class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                <span id="status-message">Menunggu Koneksi Bluetooth...</span>
+                <span id="device-info" class="text-xs text-gray-400 dark:text-gray-600 block italic"></span>
         </div>
 
         <div class="flex items-baseline">
@@ -311,22 +367,35 @@ body:has(#halaman-jam:not(.hidden)) {
         <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs sm:text-sm mt-2">SABTU, 25 MEI 2024</p>
         
         <div class="mt-6 flex items-center gap-6 bg-white/5 p-5 rounded-3xl border border-white/10 w-full">
-            <div id="weather-temp" class="text-5xl font-black text-yellow-400">--°</div>
-            <div class="border-l border-white/20 pl-6">
-                <p id="location-text" class="text-[10px] text-gray-500 uppercase">Searching GPS...</p>
-                <p id="weather-desc" class="text-base text-white font-medium italic">Loading...</p>
+             <span id="temp" class="font-black text-2xl text-yellow-400">--°C</span>
+                <div class="w-[1px] h-6 bg-white/20"></div>
+                <div class="flex flex-col">
+                    <span id="weatherDesc" class="text-xs text-yellow-400 font-bold uppercase">Memuat...</span>
+                    <span id="city" class="text-[10px] text-yellow-400 opacity-70">--</span>
+                </div>
+
+                <div class="w-[1px] h-6 bg-white/20"></div>
+                <div class="flex flex-col">
+                 <span class="text-xs text-white/40 uppercase tracking-widest">Hum</span>
+                 <span id="humidity" class="text-xs font-bold text-white">--%</span>
+               </div>
+
+             <div class="w-[1px] h-6 bg-white/20"></div>
+            <div class="flex flex-col">
+            <span class="text-[7px] text-white/40 uppercase tracking-widest">Wind</span>
+            <span id="windspeed" class="text-xs font-bold text-white">-- km/h</span>
+        </div>
+           <div class="w-[1px] h-6 bg-white/20"></div>
+             <div class="flex flex-col">
+            <span class="text-[7px] text-white/40 uppercase tracking-widest">UV</span>
+            <span id="uvIndex" class="text-xs font-bold text-white">--</span>
+        </div>
+
             </div>
 
-     <div class="mt-4 w-full">
-    <button onclick="toggleFullscreen()" class="flex items-center justify-center gap-3 w-full bg-white/10 hover:bg-white/20 border border-white/20 py-3 rounded-2xl transition-all group">
-        <div id="fs-icon-container" class="text-red-500">
-            <svg id="icon-expand" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
-        </div>
-        <span id="fs-text" class="text-xs font-bold tracking-widest text-gray-300 uppercase">Aktifkan Layar Penuh</span>
-    </button>
-</div>
+            
+       
+ 
 
         </div>
     </div>
@@ -909,11 +978,16 @@ function formatTime(hours) {
             // *** PERUBAHAN: Kirim notif ke Firebase saat terputus ***
             logNotificationToFirebase('BLUETOOTH_DISCONNECTED', 'Koneksi Bluetooth terputus.'); 
 
+             
+
             statusMessage.textContent = "Koneksi Bluetooth terputus.";
             deviceInfo.textContent = "";
             connectButton.disabled = false;
             disconnectButton.disabled = true;
             dataBuffer = new ArrayBuffer(0); 
+
+            // Jika parsing gagal atau koneksi hilang
+            updateConnectionUI("Disconnected");
             
             // Reset display
             const initialValues = Array(17).fill(0.0);
@@ -978,6 +1052,11 @@ function formatTime(hours) {
                 statusMessage.textContent = "Terkoneksi! Permintaan data dimulai (1Hz).";
                 connectButton.disabled = true;
                 disconnectButton.disabled = false;
+
+                const info = statusMessage.textContent;
+    
+                 // PANGGIL DI SINI agar UI berubah
+                updateConnectionUI(info, "CONNECTED");
 
                 // Reset min/max trackers saat koneksi baru
                 minTotalVoltage = Infinity;
@@ -1934,6 +2013,31 @@ async function startAutoUploadInterval() {
 }
         // --- END FUNGSI BARU UNTUK FIREBASE ---
 
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Muat tema sebelum memuat data
+            loadTheme(); 
+            
+            const initialValues = Array(20).fill(0.0);
+            updateDashboard(initialValues);
+            
+            // Muat grafik awal dari localStorage
+            await fetchAndRenderGraphs(selectedPeriod);
+
+          // MULAI interval upload otomatis setelah semua inisialisasi selesai
+          // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
+          startAutoUploadInterval();
+
+           initNumbers();
+           updateJamRealtime();
+           setInterval(updateJamRealtime, 1000);
+           fetchWeatherByGPS();
+           setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
+  
+
+        });
+
+
  function pindahKe(halaman) {
    // Cari baris ini dan ubah menjadi:
     const halUtama = document.querySelectorAll('header, section, #grafik-section, .flex.justify-between.items-center.mb-4');
@@ -1987,26 +2091,67 @@ function initNumbers() {
     }
 }
 
-// 2. Fungsi Cuaca Berbasis GPS
-async function fetchWeatherByGPS() {
-    if (!navigator.geolocation) return;
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        
-        try {
-            // Mengambil data cuaca & nama lokasi kasar
-            const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-            const data = await response.json();
-            
-            document.getElementById('weather-temp').textContent = Math.round(data.current_weather.temperature) + "°C";
-            document.getElementById('location-text').textContent = `GPS: ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
-            document.getElementById('weather-desc').textContent = "Kondisi Saat Ini";
-        } catch (err) {
-            console.error("Gagal ambil cuaca");
-        }
+ let weatherData = { temp: "", desc: "", city: "" };
+
+async function fetchWeatherByGPS() {
+    const getCoords = () => new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
     });
+
+    try {
+        let lat, lon, city = "Lokasi";
+        
+        // 1. Dapatkan Lokasi
+        try {
+            const pos = await getCoords();
+            lat = pos.coords.latitude;
+            lon = pos.coords.longitude;
+            const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            const revData = await revRes.json();
+            city = revData.address.city || revData.address.town || revData.address.village || "Sekitar Anda";
+        } catch (geoError) {
+            const lRes = await fetch('https://ipapi.co/json/');
+            const lData = await lRes.json();
+            lat = lData.latitude; 
+            lon = lData.longitude; 
+            city = lData.city;
+        }
+
+        document.getElementById('city').textContent = city;
+        weatherData.city = city;
+
+        // 2. Fetch Data Cuaca (DITAMBAHKAN parameter windspeed, humidity, dan uv_index)
+        // Perhatikan penambahan: &current=... dan &daily=uv_index_max
+        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=uv_index_max&timezone=auto`);
+        const wData = await wRes.json();
+        
+        // 3. Update Data Utama (Menggunakan wData.current)
+        weatherData.temp = Math.round(wData.current.temperature_2m);
+        document.getElementById('temp').textContent = `${weatherData.temp}°C`;
+        
+        const labels = { 0: "Cerah", 1: "Cerah", 2: "Berawan", 3: "Mendung", 61: "Hujan", 95: "Badai" };
+        weatherData.desc = labels[wData.current.weather_code] || "Berawan";
+        document.getElementById('weatherDesc').textContent = weatherData.desc;
+
+        // 4. Update Detail Sebelah Kanan (Koreksi nama variabel dari 'data' ke 'wData')
+        document.getElementById('windspeed').textContent = `${wData.current.wind_speed_10m} km/h`;
+        document.getElementById('humidity').textContent = `${wData.current.relative_humidity_2m}%`;
+        
+        // Data UV ada di bagian 'daily'
+        const uvValue = wData.daily.uv_index_max[0];
+        const uvEl = document.getElementById('uvIndex');
+        if (uvEl) {
+            uvEl.textContent = uvValue;
+            // Indikator Warna UV
+            if (uvValue > 7) uvEl.style.color = "#ef4444"; // Merah
+            else if (uvValue > 3) uvEl.style.color = "#fbbf24"; // Kuning
+            else uvEl.style.color = "#4ad66d"; // Hijau
+        }
+
+    } catch (e) {
+        console.error("Gagal memperbarui cuaca:", e);
+    }
 }
 
 // 3. Update Jam & Tanggal Lengkap
@@ -2037,22 +2182,27 @@ function updateJamRealtime() {
 
 // Tambahkan update status bluetooth ke fungsi updateConnectionUI Anda
 function updateConnectionUI(message, deviceName = "") {
-    // ... logika lama anda ...
-    
-    // Logika baru untuk halaman jam
     const dot = document.getElementById('dot-status');
-    const txt = document.getElementById('text-status');
-    
-    if(message.includes("Terhubung")) {
+    const txt = document.getElementById('text-message');
+
+    if (!dot || !txt) return;
+
+    // Cek apakah pesan mengandung kata "Terkoneksi"
+    const isConnected = message.toLowerCase().includes("terkoneksi");
+
+    if (isConnected) {
+        // Saat Terkoneksi: Dot Kuning, Teks Kuning
         dot.classList.replace('bg-red-500', 'bg-yellow-400');
+        txt.classList.replace('text-gray-500', 'text-yellow-400');
         txt.textContent = deviceName || "CONNECTED";
-        txt.classList.replace('text-gray-400', 'text-yellow-400');
     } else {
+        // Saat Terputus: Dot Merah, Teks Abu-abu
         dot.classList.replace('bg-yellow-400', 'bg-red-500');
-        txt.textContent = "DISCONNECTED";
-        txt.classList.replace('text-yellow-400', 'text-gray-400');
+        txt.classList.replace('text-yellow-400', 'text-gray-500');
+        txt.textContent = "DIS";
     }
 }
+
 
 function toggleFullscreen() {
     const fsText = document.getElementById('fs-text');
@@ -2086,35 +2236,12 @@ document.addEventListener('fullscreenchange', () => {
         fsText.textContent = "Aktifkan Layar Penuh";
         fsText.classList.replace('text-red-500', 'text-gray-300');
     }
-});        
+});
 
 
-        
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Muat tema sebelum memuat data
-            loadTheme(); 
-            
-            const initialValues = Array(20).fill(0.0);
-            updateDashboard(initialValues);
-            
-            // Muat grafik awal dari localStorage
-            await fetchAndRenderGraphs(selectedPeriod);
-
-          // MULAI interval upload otomatis setelah semua inisialisasi selesai
-          // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
-          startAutoUploadInterval();
-
-          initNumbers();
-          updateJamRealtime();
-          setInterval(updateJamRealtime, 1000);
-          fetchWeatherByGPS();
-          setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
-            
-        });
     </script>
 </body>
 </html>
-
 
 
 
