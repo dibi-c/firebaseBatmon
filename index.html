@@ -2092,7 +2092,7 @@ function initNumbers() {
 }
 
 
- let weatherData = { temp: "", desc: "", city: "" };
+let weatherData = { temp: "", desc: "", city: "" };
 
 async function fetchWeatherByGPS() {
     const getCoords = () => new Promise((resolve, reject) => {
@@ -2102,7 +2102,7 @@ async function fetchWeatherByGPS() {
     try {
         let lat, lon, city = "Lokasi";
         
-        // 1. Dapatkan Lokasi
+        // 1. Dapatkan Lokasi (GPS dengan Fallback IP)
         try {
             const pos = await getCoords();
             lat = pos.coords.latitude;
@@ -2121,32 +2121,42 @@ async function fetchWeatherByGPS() {
         document.getElementById('city').textContent = city;
         weatherData.city = city;
 
-        // 2. Fetch Data Cuaca (DITAMBAHKAN parameter windspeed, humidity, dan uv_index)
-        // Perhatikan penambahan: &current=... dan &daily=uv_index_max
-        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=uv_index_max&timezone=auto`);
+        // 2. FETCH DATA REALTIME
+        // Ubah 'daily=uv_index_max' menjadi 'current=uv_index' agar akurat di malam hari
+        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,uv_index&timezone=auto`);
         const wData = await wRes.json();
         
-        // 3. Update Data Utama (Menggunakan wData.current)
-        weatherData.temp = Math.round(wData.current.temperature_2m);
+        const current = wData.current; // Shortcut ke data realtime
+
+        // 3. Update Data Utama
+        weatherData.temp = Math.round(current.temperature_2m);
         document.getElementById('temp').textContent = `${weatherData.temp}°C`;
         
-        const labels = { 0: "Cerah", 1: "Cerah", 2: "Berawan", 3: "Mendung", 61: "Hujan", 95: "Badai" };
-        weatherData.desc = labels[wData.current.weather_code] || "Berawan";
+        const labels = { 0: "Cerah", 1: "Cerah", 2: "Berawan", 3: "Mendung", 45: "Kabut", 61: "Hujan", 95: "Badai" };
+        weatherData.desc = labels[current.weather_code] || "Berawan";
         document.getElementById('weatherDesc').textContent = weatherData.desc;
 
-        // 4. Update Detail Sebelah Kanan (Koreksi nama variabel dari 'data' ke 'wData')
-        document.getElementById('windspeed').textContent = `${wData.current.wind_speed_10m} km/h`;
-        document.getElementById('humidity').textContent = `${wData.current.relative_humidity_2m}%`;
+        // 4. Update Detail Sebelah Kanan (REALTIME)
+        document.getElementById('windspeed').textContent = `${current.wind_speed_10m} km/h`;
+        document.getElementById('humidity').textContent = `${current.relative_humidity_2m}%`;
         
-        // Data UV ada di bagian 'daily'
-        const uvValue = wData.daily.uv_index_max[0];
+        // AMBIL UV REALTIME (Bukan Daily Max)
+        const uvValue = current.uv_index; 
         const uvEl = document.getElementById('uvIndex');
+        
         if (uvEl) {
-            uvEl.textContent = uvValue;
-            // Indikator Warna UV
-            if (uvValue > 7) uvEl.style.color = "#ef4444"; // Merah
-            else if (uvValue > 3) uvEl.style.color = "#fbbf24"; // Kuning
-            else uvEl.style.color = "#4ad66d"; // Hijau
+            uvEl.textContent = uvValue.toFixed(1); // Contoh: 0.0 atau 5.2
+
+            // Warna Indikator UV Realtime
+            if (uvValue >= 8) {
+                uvEl.style.color = "#ef4444"; // Merah (Bahaya)
+            } else if (uvValue >= 3) {
+                uvEl.style.color = "#fbbf24"; // Kuning (Sedang)
+            } else if (uvValue > 0) {
+                uvEl.style.color = "#4ad66d"; // Hijau (Aman)
+            } else {
+                uvEl.style.color = "#9ca3af"; // Abu-abu (Malam hari / 0)
+            }
         }
 
     } catch (e) {
