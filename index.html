@@ -833,7 +833,7 @@ function formatTime(hours) {
                 minMaxCurrentElement.textContent = "Min: 0.00 A | Max: 0.00 A";
                 minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
                 
-                requestInterval = setInterval(sendRequest, 3000);
+                requestInterval = setInterval(sendRequest, 1000);
                 
                 // Setelah koneksi berhasil, segera muat grafik untuk periode default
                 await fetchAndRenderGraphs(selectedPeriod);
@@ -1756,6 +1756,7 @@ async function startAutoUploadInterval() {
     </script>
 </body>
 </html>
+
 
 
 
