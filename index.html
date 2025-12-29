@@ -195,10 +195,51 @@
             flex-shrink: 0;
 }
 
-/* Jam Digital: Perbesar batas font maksimalnya */
+/* Jam Digital Fleksibel */
 #time-digital {
-    font-size: clamp(5rem, 25vw, 15rem); /* Diubah dari 15vw ke 25vw agar lebih raksasa */
+    /* Menggunakan vmin agar mengikuti sisi terkecil layar (tinggi saat landscape) */
+    font-size: clamp(4rem, 25vmin, 15rem); 
+    line-height: 0.85;
+    transition: all 0.3s ease;
+}
+
+#time-seconds {
+    /* Ukuran detik otomatis menyesuaikan jam utama */
+    font-size: clamp(1.5rem, 8vmin, 5rem);
     line-height: 1;
+}
+
+/* Kontainer Cuaca Fleksibel */
+.weather-box-updated {
+    display: flex;
+    align-items: center;
+    /* 1. Perbesar Gap (jarak antar item) */
+    gap: 4vmin; 
+    /* 2. Perbesar Padding (ruang dalam box) */
+    padding: 2.5vmin 4vmin; 
+    
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3vmin; /* Sudut lebih bulat */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: fit-content;
+}
+
+/* Garis pembagi antar informasi (Vertical Divider) */
+.divider-v { 
+    width: 2px; /* Lebih tebal sedikit */
+    height: 5vmin; /* Lebih tinggi */
+    background: rgba(255, 255, 255, 0.2); 
+}
+
+/* Teks Suhu Utama (--°C) */
+#temp {
+    font-size: clamp(1.5rem, 5vmin, 3rem); /* Ukuran suhu lebih dominan */
+}
+
+/* Teks Keterangan (Hum, Wind, UV) */
+.weather-text-sub { 
+    /* Naikkan angka tengah (vmin) untuk memperbesar teks detail */
+    font-size: clamp(0.8rem, 2.5vmin, 1.2rem); 
 }
 
 /* Modifikasi landscape agar tetap besar */
@@ -282,14 +323,7 @@
             border-radius: 12px;
             cursor: pointer;
         }
-/* Info Cuaca & GPS */
-.weather-box {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 10px 20px;
-    border-radius: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-top: 20px;
-}
+
 
 
 :fullscreen {
@@ -333,14 +367,13 @@ body:has(#halaman-jam:not(.hidden)) {
     </script>
 
 
-<div id="halaman-jam" class="hidden flex flex-col landscape:flex-row items-center justify-evenly min-h-screen bg-black overflow-hidden">
+<div id="halaman-jam" class="hidden flex flex-col landscape:flex-row items-center justify-evenly min-h-screen bg-black overflow-hidden p-4">
 
-   <button class="fs-btn" onclick="toggleFullscreen()">
+    <button class="fs-btn fixed top-4 right-4 z-50" onclick="toggleFullscreen()">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
     </button>
 
-    
-    <div class="flex-shrink-0">
+    <div class="flex-shrink-0 mb-6 landscape:mb-0">
         <div class="clock-container shadow-[0_0_80px_rgba(255,0,0,0.2)] border-8 border-gray-900 rounded-full relative bg-black" onclick="toggleFullscreen()">
             <div id="numbers-container" class="absolute inset-0"></div>
             <div class="dot"></div>
@@ -348,55 +381,51 @@ body:has(#halaman-jam:not(.hidden)) {
             <div id="min-hand" class="hand min-hand"></div>
             <div id="sec-hand" class="hand sec-hand"></div>
             <div class="absolute top-1/2 left-1/2 w-5 h-5 bg-red-600 rounded-full -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg"></div>
-            
         </div>
     </div>
 
-    <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left w-full landscape:w-auto">
+    <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left">
         
-        <div id="status-display" class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                <span id="status-message">Menunggu Koneksi Bluetooth...</span>
-                <span id="device-info" class="text-xs text-gray-400 dark:text-gray-600 block italic"></span>
+        <div id="status-display" class="mb-2">
+            <span id="status-message" class="weather-text-sub text-gray-500 uppercase tracking-widest">Menunggu Koneksi Bluetooth...</span>
         </div>
 
-        <div class="flex items-baseline">
+        <div class="flex items-baseline mb-2">
             <h1 id="time-digital" class="font-black text-white tracking-tighter">00:00</h1>
-            <span id="time-seconds" class="text-3xl sm:text-5xl font-bold text-red-600 ml-2 italic">00</span>
+            <span id="time-seconds" class="font-bold text-red-600 ml-2 italic">00</span>
         </div>
         
-        <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs sm:text-sm mt-2">SABTU, 25 MEI 2024</p>
+        <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] weather-text-sub mb-6">SABTU, 25 MEI 2024</p>
         
-        <div class="mt-6 flex items-center gap-6 bg-white/5 p-5 rounded-3xl border border-white/10 w-full">
-             <span id="temp" class="font-black text-2xl text-yellow-400">--°C</span>
-                <div class="w-[1px] h-6 bg-white/20"></div>
-                <div class="flex flex-col">
-                    <span id="weatherDesc" class="text-xs text-yellow-400 font-bold uppercase">Memuat...</span>
-                    <span id="city" class="text-[10px] text-yellow-400 opacity-70">--</span>
+        <div class="weather-box-updated">
+            <div class="flex items-center gap-3">
+                <span id="temp" class="weather-text-main font-black text-yellow-400">--°C</span>
+                <div class="flex flex-col leading-tight">
+                    <span id="weatherDesc" class="weather-text-sub text-yellow-400 font-bold uppercase">Memuat...</span>
+                    <span id="city" class="text-[8px] sm:text-[10px] text-yellow-400 opacity-70">--</span>
                 </div>
-
-                <div class="w-[1px] h-6 bg-white/20"></div>
-                <div class="flex flex-col">
-                 <span class="text-xs text-white/40 uppercase tracking-widest">Hum</span>
-                 <span id="humidity" class="text-xs font-bold text-white">--%</span>
-               </div>
-
-             <div class="w-[1px] h-6 bg-white/20"></div>
-            <div class="flex flex-col">
-            <span class="text-[7px] text-white/40 uppercase tracking-widest">Wind</span>
-            <span id="windspeed" class="text-xs font-bold text-white">-- km/h</span>
-        </div>
-           <div class="w-[1px] h-6 bg-white/20"></div>
-             <div class="flex flex-col">
-            <span class="text-[7px] text-white/40 uppercase tracking-widest">UV</span>
-            <span id="uvIndex" class="text-xs font-bold text-white">--</span>
-        </div>
-
             </div>
 
-            
-       
- 
+            <div class="divider-v"></div>
 
+            <div class="flex flex-col">
+                <span class="weather-text-sub text-white/40 uppercase">Hum</span>
+                <span id="humidity" class="weather-text-sub font-bold text-white">--%</span>
+            </div>
+
+            <div class="divider-v"></div>
+
+            <div class="flex flex-col">
+                <span class="weather-text-sub text-white/40 uppercase">Wind</span>
+                <span id="windspeed" class="weather-text-sub font-bold text-white">-- <small>km/h</small></span>
+            </div>
+
+            <div class="divider-v"></div>
+
+            <div class="flex flex-col">
+                <span class="weather-text-sub text-white/40 uppercase">UV</span>
+                <span id="uvIndex" class="weather-text-sub font-bold text-white">--</span>
+            </div>
         </div>
     </div>
 </div>
@@ -2171,23 +2200,40 @@ function updateJamRealtime() {
     const m = now.getMinutes();
     const s = now.getSeconds();
 
-    // Analog (Jarum Merah)
-    document.getElementById('sec-hand').style.transform = `translateX(-50%) rotate(${(s/60)*360}deg)`;
-    document.getElementById('min-hand').style.transform = `translateX(-50%) rotate(${(m/60)*360}deg)`;
-    document.getElementById('hour-hand').style.transform = `translateX(-50%) rotate(${(h%12/12)*360 + (m/60)*30}deg)`;
+    const secHand = document.getElementById('sec-hand');
+    const minHand = document.getElementById('min-hand');
+    const hourHand = document.getElementById('hour-hand');
+
+    // FIX: Cegah efek melompat pada detik 00
+    // Jika detik 0, matikan transisi agar tidak putar balik. 
+    // Jika detik > 0, hidupkan kembali transisinya.
+    if (s === 0) {
+        secHand.style.transition = 'none';
+    } else {
+        secHand.style.transition = 'all 0.1s cubic-bezier(0.1, 2.7, 0.58, 1)';
+    }
+
+    // Kalkulasi Derajat
+    const sDeg = (s / 60) * 360;
+    const mDeg = (m / 60) * 360 + (s / 60) * 6; // Menit bergerak halus mengikuti detik
+    const hDeg = (h % 12 / 12) * 360 + (m / 60) * 30; // Jam bergerak halus mengikuti menit
+
+    // Analog
+    secHand.style.transform = `translateX(-50%) rotate(${sDeg}deg)`;
+    minHand.style.transform = `translateX(-50%) rotate(${mDeg}deg)`;
+    hourHand.style.transform = `translateX(-50%) rotate(${hDeg}deg)`;
 
     // Digital Raksasa
     document.getElementById('time-digital').textContent = 
         `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
     
-    // Detik (Ditampilkan terpisah agar ukuran bisa berbeda)
+    // Detik
     document.getElementById('time-seconds').textContent = String(s).padStart(2,'0');
     
     // Tanggal
     const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
     document.getElementById('full-date-text').textContent = now.toLocaleDateString('id-ID', options);
 }
-
 
 
 // Tambahkan update status bluetooth ke fungsi updateConnectionUI Anda
