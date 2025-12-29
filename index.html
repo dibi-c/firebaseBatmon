@@ -210,36 +210,49 @@
 }
 
 /* Kontainer Cuaca Fleksibel */
+/* Kontainer Utama Weather */
 .weather-box-updated {
     display: flex;
     align-items: center;
-    /* 1. Perbesar Gap (jarak antar item) */
-    gap: 4vmin; 
-    /* 2. Perbesar Padding (ruang dalam box) */
+    justify-content: center;
+    /* Jarak antar elemen menggunakan vmin agar fleksibel */
+    gap: 3vmin; 
     padding: 2.5vmin 4vmin; 
-    
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 3vmin; /* Sudut lebih bulat */
+    border-radius: 3vmin;
     border: 1px solid rgba(255, 255, 255, 0.1);
     width: fit-content;
+    /* Mencegah box melebar melebihi layar di portrait */
+    max-width: 95vw; 
 }
 
-/* Garis pembagi antar informasi (Vertical Divider) */
+/* Garis pembagi vertikal fleksibel */
 .divider-v { 
-    width: 2px; /* Lebih tebal sedikit */
-    height: 5vmin; /* Lebih tinggi */
+    width: 1px;
+    height: 5vmin; 
     background: rgba(255, 255, 255, 0.2); 
 }
 
-/* Teks Suhu Utama (--°C) */
-#temp {
-    font-size: clamp(1.5rem, 5vmin, 3rem); /* Ukuran suhu lebih dominan */
+/* Ukuran Suhu Utama (--°C) */
+.temp-text-flex {
+    /* min 1.5rem, ideal 5% dari layar, max 4rem */
+    font-size: clamp(1.5rem, 5vmin, 4rem);
+    font-weight: 900;
 }
 
-/* Teks Keterangan (Hum, Wind, UV) */
-.weather-text-sub { 
-    /* Naikkan angka tengah (vmin) untuk memperbesar teks detail */
-    font-size: clamp(0.8rem, 2.5vmin, 1.2rem); 
+/* Ukuran Teks Detail (Hum, Wind, UV, City) */
+.weather-text-sub-flex { 
+    /* min 0.7rem, ideal 2% dari layar, max 1.2rem */
+    font-size: clamp(0.7rem, 2vmin, 1.2rem);
+    line-height: 1.2;
+}
+
+/* Label kecil (seperti tulisan 'Hum', 'Wind') */
+.label-tiny {
+    font-size: clamp(0.5rem, 1.2vmin, 0.8rem);
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
 /* Modifikasi landscape agar tetap besar */
@@ -344,6 +357,19 @@ body:has(#halaman-jam:not(.hidden)) {
     padding: 0 !important;
 }
 
+
+/* Warna Merah (Default/Putus) */
+.dot-red {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+}
+
+/* Warna Hijau (Terkoneksi) */
+.dot-green {
+    background-color: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+}
+
     </style>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -384,11 +410,17 @@ body:has(#halaman-jam:not(.hidden)) {
         </div>
     </div>
 
-    <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left">
-        
-        <div id="status-display" class="mb-2">
-            <span id="status-message" class="weather-text-sub text-gray-500 uppercase tracking-widest">Menunggu Koneksi Bluetooth...</span>
-        </div>
+  <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left">
+
+    <div id="status-display" class="mb-2 flex items-center gap-2">
+    <span id="status-dot" class="inline-block w-4 h-4 rounded-full animate-pulse dot-red"></span>
+
+    <span id="status-message" class="text-[8px] sm:text-xs text-gray-500 uppercase tracking-widest opacity-70">
+        Menunggu Koneksi Bluetooth...
+    </span>
+</div>
+
+
 
         <div class="flex items-baseline mb-2">
             <h1 id="time-digital" class="font-black text-white tracking-tighter">00:00</h1>
@@ -397,36 +429,36 @@ body:has(#halaman-jam:not(.hidden)) {
         
         <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] weather-text-sub mb-6">SABTU, 25 MEI 2024</p>
         
-        <div class="weather-box-updated">
-            <div class="flex items-center gap-3">
-                <span id="temp" class="weather-text-main font-black text-yellow-400">--°C</span>
-                <div class="flex flex-col leading-tight">
-                    <span id="weatherDesc" class="weather-text-sub text-yellow-400 font-bold uppercase">Memuat...</span>
-                    <span id="city" class="text-[8px] sm:text-[10px] text-yellow-400 opacity-70">--</span>
-                </div>
-            </div>
-
-            <div class="divider-v"></div>
-
-            <div class="flex flex-col">
-                <span class="weather-text-sub text-white/40 uppercase">Hum</span>
-                <span id="humidity" class="weather-text-sub font-bold text-white">--%</span>
-            </div>
-
-            <div class="divider-v"></div>
-
-            <div class="flex flex-col">
-                <span class="weather-text-sub text-white/40 uppercase">Wind</span>
-                <span id="windspeed" class="weather-text-sub font-bold text-white">-- <small>km/h</small></span>
-            </div>
-
-            <div class="divider-v"></div>
-
-            <div class="flex flex-col">
-                <span class="weather-text-sub text-white/40 uppercase">UV</span>
-                <span id="uvIndex" class="weather-text-sub font-bold text-white">--</span>
-            </div>
+       <div class="weather-box-updated">
+    <div class="flex items-center gap-3">
+        <span id="temp" class="temp-text-flex text-yellow-400">--°C</span>
+        <div class="flex flex-col text-left">
+            <span id="weatherDesc" class="weather-text-sub-flex text-yellow-400 font-bold uppercase">Memuat...</span>
+            <span id="city" class="label-tiny text-yellow-400 opacity-70">Jakarta</span>
         </div>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <div class="flex flex-col items-center">
+        <span class="label-tiny">Hum</span>
+        <span id="humidity" class="weather-text-sub-flex font-bold text-white">--%</span>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <div class="flex flex-col items-center">
+        <span class="label-tiny">Wind</span>
+        <span id="windspeed" class="weather-text-sub-flex font-bold text-white">-- <small class="text-[1vmin]">km/h</small></span>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <div class="flex flex-col items-center">
+        <span class="label-tiny">UV</span>
+        <span id="uvIndex" class="weather-text-sub-flex font-bold text-white">--</span>
+    </div>
+</div>
     </div>
 </div>
 
@@ -2062,9 +2094,27 @@ async function startAutoUploadInterval() {
            setInterval(updateJamRealtime, 1000);
            fetchWeatherByGPS();
            setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
+           // Jalankan fungsi ini setiap kali teks status berubah.
+// Atau bisa Anda panggil di dalam interval jam Anda:
+setInterval(updateStatusIndicator, 1000);
   
 
         });
+
+ function updateStatusIndicator() {
+    const statusMsg = document.getElementById('status-message').textContent;
+    const dot = document.getElementById('status-dot');
+
+    // Cek apakah ada kata "Terkoneksi" di dalam teks status
+    if (statusMsg.includes("Terkoneksi")) {
+        dot.classList.remove('dot-red');
+        dot.classList.add('dot-green');
+    } else {
+        dot.classList.remove('dot-green');
+        dot.classList.add('dot-red');
+    }
+}
+
 
 
  function pindahKe(halaman) {
@@ -2298,16 +2348,4 @@ document.addEventListener('fullscreenchange', () => {
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
 
