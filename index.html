@@ -198,14 +198,14 @@
 /* Jam Digital Fleksibel */
 #time-digital {
     /* Menggunakan vmin agar mengikuti sisi terkecil layar (tinggi saat landscape) */
-    font-size: clamp(4rem, 25vmin, 15rem); 
+    font-size: clamp(6rem, 28vmin, 15rem); 
     line-height: 0.85;
     transition: all 0.3s ease;
 }
 
 #time-seconds {
     /* Ukuran detik otomatis menyesuaikan jam utama */
-    font-size: clamp(1.5rem, 8vmin, 5rem);
+    font-size: clamp(4rem, 12vmin, 5rem);
     line-height: 1;
 }
 
@@ -217,7 +217,7 @@
     justify-content: center;
     /* Jarak antar elemen menggunakan vmin agar fleksibel */
     gap: 3vmin; 
-    padding: 2.5vmin 4vmin; 
+    padding: 1vmin 2vmin; 
     background: rgba(255, 255, 255, 0.05);
     border-radius: 3vmin;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -236,20 +236,20 @@
 /* Ukuran Suhu Utama (--°C) */
 .temp-text-flex {
     /* min 1.5rem, ideal 5% dari layar, max 4rem */
-    font-size: clamp(1.5rem, 5vmin, 4rem);
+    font-size: clamp(2rem, 6vmin, 4rem);
     font-weight: 900;
 }
 
 /* Ukuran Teks Detail (Hum, Wind, UV, City) */
 .weather-text-sub-flex { 
     /* min 0.7rem, ideal 2% dari layar, max 1.2rem */
-    font-size: clamp(0.7rem, 2vmin, 1.2rem);
+    font-size: clamp(1.2rem, 4vmin, 1.2rem);
     line-height: 1.2;
 }
 
 /* Label kecil (seperti tulisan 'Hum', 'Wind') */
 .label-tiny {
-    font-size: clamp(0.5rem, 1.2vmin, 0.8rem);
+    font-size: clamp(1rem, 1.5vmin, 0.8rem);
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -412,13 +412,12 @@ body:has(#halaman-jam:not(.hidden)) {
 
   <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left">
 
-    <div id="status-display" class="mb-2 flex items-center gap-2">
-    <span id="status-dot" class="inline-block w-4 h-4 rounded-full animate-pulse dot-red"></span>
 
-    <span id="status-message" class="text-[8px] sm:text-xs text-gray-500 uppercase tracking-widest opacity-70">
-        Menunggu Koneksi Bluetooth...
-    </span>
-</div>
+   
+
+    
+    <div id="status-dot" class="inline-block w-4 h-4 rounded-full animate-pulse dot-red"></span>
+    </div>
 
 
 
@@ -427,7 +426,9 @@ body:has(#halaman-jam:not(.hidden)) {
             <span id="time-seconds" class="font-bold text-red-600 ml-2 italic">00</span>
         </div>
         
-        <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] weather-text-sub mb-6">SABTU, 25 MEI 2024</p>
+        <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] mb-6 text-xl md:text-2xl lg:text-3xl">
+          SABTU, 25 MEI 2024
+        </p>
         
        <div class="weather-box-updated">
     <div class="flex items-center gap-3">
@@ -2103,17 +2104,32 @@ async function startAutoUploadInterval() {
         });
 
  function updateStatusIndicator() {
-    const statusMsg = document.getElementById('status-message').textContent;
-    const dot = document.getElementById('status-dot');
+    // Gunakan querySelectorAll untuk mengambil semua elemen dengan ID yang sama (atau class)
+    // Namun karena ID harusnya unik, lebih baik targetkan semua span yang mengandung pesan status
+    const statusMessages = document.querySelectorAll('[id="status-message"]');
+    const dots = document.querySelectorAll('[id="status-dot"]');
 
-    // Cek apakah ada kata "Terkoneksi" di dalam teks status
-    if (statusMsg.includes("Terkoneksi")) {
-        dot.classList.remove('dot-red');
-        dot.classList.add('dot-green');
-    } else {
-        dot.classList.remove('dot-green');
-        dot.classList.add('dot-red');
-    }
+    // Ambil teks dari elemen pertama sebagai referensi
+    const statusText = statusMessages.length > 0 ? statusMessages[0].textContent : "";
+
+    // Tentukan warna berdasarkan status
+    const isConnected = statusText.includes("Terkoneksi");
+
+    // Update semua pesan status (jika diperlukan sinkronisasi teks)
+    statusMessages.forEach(msg => {
+        // msg.textContent = statusText; // Opsional: pastikan semua teks sama
+    });
+
+    // Update semua titik indikator
+    dots.forEach(dot => {
+        if (isConnected) {
+            dot.classList.remove('bg-red-600', 'dot-red');
+            dot.classList.add('bg-green-500', 'dot-green');
+        } else {
+            dot.classList.remove('bg-green-500', 'dot-green');
+            dot.classList.add('bg-red-600', 'dot-red');
+        }
+    });
 }
 
 
