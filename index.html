@@ -2090,9 +2090,13 @@ async function startAutoUploadInterval() {
           startAutoUploadInterval();
 
            initNumbers();
+           updateJamRealtime();
            setInterval(updateJamRealtime, 1000);
+           fetchWeatherByGPS();
            setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
-           setInterval(updateStatusIndicator, 2000);
+           // Jalankan fungsi ini setiap kali teks status berubah.
+// Atau bisa Anda panggil di dalam interval jam Anda:
+setInterval(updateStatusIndicator, 1000);
   
 
         });
@@ -2344,5 +2348,4 @@ document.addEventListener('fullscreenchange', () => {
     </script>
 </body>
 </html>
-
 
