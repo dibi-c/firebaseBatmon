@@ -205,7 +205,7 @@
 
 #time-seconds {
     /* Ukuran detik otomatis menyesuaikan jam utama */
-    font-size: clamp(4rem, 12vmin, 5rem);
+    font-size: clamp(3rem, 10vmin, 5rem);
     line-height: 1;
 }
 
@@ -236,7 +236,7 @@
 /* Ukuran Suhu Utama (--°C) */
 .temp-text-flex {
     /* min 1.5rem, ideal 5% dari layar, max 4rem */
-    font-size: clamp(2rem, 6vmin, 4rem);
+    font-size: clamp(1.5rem, 5vmin, 4rem);
     font-weight: 900;
 }
 
@@ -416,7 +416,7 @@ body:has(#halaman-jam:not(.hidden)) {
    
 
     
-    <div id="status-dot" class="inline-block w-4 h-4 rounded-full animate-pulse dot-red"></span>
+    <div id="device-info" class="inline-block w-4 h-4 rounded-full animate-pulse dot-red"></span>
     </div>
 
 
@@ -2074,7 +2074,8 @@ async function startAutoUploadInterval() {
     }
 }
         // --- END FUNGSI BARU UNTUK FIREBASE ---
-
+        // Simpan referensi interval agar bisa dihentikan jika perlu
+        let jamInterval, weatherInterval, statusInterval;
 
         document.addEventListener('DOMContentLoaded', async () => {
             // Muat tema sebelum memuat data
@@ -2092,13 +2093,18 @@ async function startAutoUploadInterval() {
 
            initNumbers();
            updateJamRealtime();
-           setInterval(updateJamRealtime, 1000);
-           fetchWeatherByGPS();
-           setInterval(fetchWeatherByGPS, 600000); // Update cuaca tiap 10 menit
-           // Jalankan fungsi ini setiap kali teks status berubah.
-           // Atau bisa Anda panggil di dalam interval jam Anda:
-           updateStatusIndicator();
-           setInterval(updateStatusIndicator, 1000);
+           // Gunakan pembersihan untuk menghindari duplikasi interval
+        clearInterval(jamInterval);
+        jamInterval = setInterval(updateJamRealtime, 1000);
+        
+        clearInterval(statusInterval);
+        statusInterval = setInterval(updateStatusIndicator, 1000);
+
+        // 5. Cuaca (10 menit sekali)
+        fetchWeatherByGPS();
+        clearInterval(weatherInterval);
+        weatherInterval = setInterval(fetchWeatherByGPS, 600000);
+
   
 
         });
