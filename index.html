@@ -410,14 +410,17 @@ body:has(#halaman-jam:not(.hidden)) {
         </div>
     </div>
 
+          
+
   <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left">
 
 
    
-
-    
-    <div id="device-info" class="inline-block w-4 h-4 rounded-full animate-pulse dot-red"></span>
-    </div>
+           <div id="status-display" class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                <span id="status-message">Menunggu Koneksi Bluetooth...</span>
+                <span id="device-info" class="text-xs text-gray-400 dark:text-gray-600 block italic"></span>
+            </div>
+  
 
 
 
@@ -2098,8 +2101,7 @@ async function startAutoUploadInterval() {
         clearInterval(jamInterval);
         jamInterval = setInterval(updateJamRealtime, 1000);
         
-        clearInterval(statusInterval);
-        statusInterval = setInterval(updateStatusIndicator, 1000);
+      
 
         // 5. Cuaca (10 menit sekali)
         fetchWeatherByGPS();
@@ -2110,34 +2112,7 @@ async function startAutoUploadInterval() {
 
         });
 
- function updateStatusIndicator() {
-    // Gunakan querySelectorAll untuk mengambil semua elemen dengan ID yang sama (atau class)
-    // Namun karena ID harusnya unik, lebih baik targetkan semua span yang mengandung pesan status
-    const statusMessages = document.querySelectorAll('[id="status-message"]');
-    const dots = document.querySelectorAll('[id="status-dot"]');
 
-    // Ambil teks dari elemen pertama sebagai referensi
-    const statusText = statusMessages.length > 0 ? statusMessages[0].textContent : "";
-
-    // Tentukan warna berdasarkan status
-    const isConnected = statusText.includes("Terkoneksi");
-
-    // Update semua pesan status (jika diperlukan sinkronisasi teks)
-    statusMessages.forEach(msg => {
-        // msg.textContent = statusText; // Opsional: pastikan semua teks sama
-    });
-
-    // Update semua titik indikator
-    dots.forEach(dot => {
-        if (isConnected) {
-            dot.classList.remove('bg-red-600', 'dot-red');
-            dot.classList.add('bg-green-500', 'dot-green');
-        } else {
-            dot.classList.remove('bg-green-500', 'dot-green');
-            dot.classList.add('bg-red-600', 'dot-red');
-        }
-    });
-}
 
 
 
@@ -2378,4 +2353,5 @@ document.addEventListener('fullscreenchange', () => {
     </script>
 </body>
 </html>
+
 
