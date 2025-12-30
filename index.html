@@ -1032,47 +1032,64 @@ function formatTime(hours) {
             }
         }
         
-        function onDisconnected() {
-            if (requestInterval) {
-                clearInterval(requestInterval);
-                requestInterval = null;
-            }
-            if (rxCharacteristic) {
-                rxCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
-            }
-            
-            // *** PERUBAHAN: Kirim notif ke Firebase saat terputus ***
-            logNotificationToFirebase('BLUETOOTH_DISCONNECTED', 'Koneksi Bluetooth terputus.'); 
+       function onDisconnected(event) {
+    // Mendapatkan objek perangkat dari event jika tersedia
+    const disconnectedDevice = event ? event.target : device;
+    
+    if (requestInterval) {
+        clearInterval(requestInterval);
+        requestInterval = null;
+    }
+    
+    if (rxCharacteristic) {
+        rxCharacteristic.removeEventListener('characteristicvaluechanged', handleNotifications);
+    }
+    
+    // 1. Tentukan Pesan Berdasarkan Kondisi
+    let reason = "Koneksi terputus (di luar jangkauan atau perangkat mati).";
+    
+    // Jika fungsi dipanggil secara manual dari tombol 'Putus'
+    if (!event) {
+        reason = "Koneksi diputuskan oleh pengguna.";
+    }
 
-             
+    // 2. Kirim notif ke Firebase dengan alasan yang spesifik
+    logNotificationToFirebase('BLUETOOTH_DISCONNECTED', reason); 
 
-            statusMessage.textContent = "Koneksi Bluetooth terputus.";
-            deviceInfo.textContent = "";
-            connectButton.disabled = false;
-            disconnectButton.disabled = true;
-            dataBuffer = new ArrayBuffer(0); 
+    // 3. Update UI Pesan Status
+    statusMessage.textContent = reason;
+    
+    // Tambahkan keterangan tambahan di elemen info perangkat
+    if (deviceInfo) {
+        deviceInfo.textContent = `Status Terakhir: ${reason}`;
+        deviceInfo.classList.add('text-red-500'); // Beri warna merah agar terlihat
+    }
 
-            // Jika parsing gagal atau koneksi hilang
-            updateConnectionUI("Disconnected");
-            
-            // Reset display
-            const initialValues = Array(17).fill(0.0);
-            updateDashboard(initialValues);
-            safetyStatusSection.classList.add('hidden'); 
-            
-            // Reset min/max trackers
-            minTotalVoltage = Infinity;
-            maxTotalVoltage = -Infinity;
-            minMaxVoltageElement.textContent = "Min: 0.00 V | Max: 0.00 V";
-            
-            minCurrent = Infinity;
-            maxCurrent = -Infinity;
-            minMaxCurrentElement.textContent = "Min: 0.00 A | Max: 0.00 A";
+    // Reset UI seperti semula
+    connectButton.disabled = false;
+    disconnectButton.disabled = true;
+    dataBuffer = new ArrayBuffer(0); 
 
-            minPower = Infinity;
-            maxPower = -Infinity;
-            minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
-        }
+    // Update UI Dot dan Dashboard
+    updateConnectionUI("Disconnected");
+    
+    const initialValues = Array(17).fill(0.0);
+    updateDashboard(initialValues);
+    safetyStatusSection.classList.add('hidden'); 
+    
+    // Reset min/max trackers
+    minTotalVoltage = Infinity;
+    maxTotalVoltage = -Infinity;
+    minMaxVoltageElement.textContent = "Min: 0.00 V | Max: 0.00 V";
+    
+    minCurrent = Infinity;
+    maxCurrent = -Infinity;
+    minMaxCurrentElement.textContent = "Min: 0.00 A | Max: 0.00 A";
+
+    minPower = Infinity;
+    maxPower = -Infinity;
+    minMaxPowerElement.textContent = "Min: 0.00 W | Max: 0.00 W";
+}
 
         // --- Logic Koneksi Bluetooth (connectBluetooth, disconnectBluetooth) ---
         async function connectBluetooth() {
