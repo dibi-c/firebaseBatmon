@@ -1776,6 +1776,10 @@ function updateDashboard(values, type) {
             let timeRemainingText;
             let timeToEmptyHours = 0;
             let timeToFullHours = 0;
+
+            let minCellV = Infinity;
+            let maxCellV = -Infinity;
+            let totalActiveCells = 0;
     
     
     // --- 1. LOGIKA PAKET VA (Update setiap 1 detik) ---
@@ -1822,9 +1826,7 @@ function updateDashboard(values, type) {
             values[INDEX_VA.CELL_3], values[INDEX_VA.CELL_4]
         ];
 
-        let minCellV = Infinity;
-        let maxCellV = -Infinity;
-        let totalActiveCells = 0;
+        
 
         cellVoltages.forEach((v, i) => {
             const cellElement = cellElements[i];
@@ -1853,9 +1855,13 @@ function updateDashboard(values, type) {
             }
         });
 
-        const deltaV = (maxCellV !== -Infinity && minCellV !== Infinity) ? (maxCellV - minCellV) * 1000 : 0;
+            const deltaV = (maxCellV !== -Infinity && minCellV !== Infinity) ? (maxCellV - minCellV) * 1000 : 0;
+            const deltaVText = totalActiveCells >= 2 ? `${Math.round(deltaV)} mV` : 'N/A';
+            const minVText = minCellV !== Infinity ? minCellV.toFixed(3) : '0.000';
+            const maxVText = maxCellV !== -Infinity ? maxCellV.toFixed(3) : '0.000';
+        
         if (deltaVElement) deltaVElement.textContent = totalActiveCells >= 2 ? `${Math.round(deltaV)} mV` : 'N/A';
-        if (summaryMinMaxElement) summaryMinMaxElement.textContent = `Sel Aktif: ${totalActiveCells} | Min: ${totalActiveCells ? minCellV.toFixed(3) : '0.000'}V | Max: ${totalActiveCells ? maxCellV.toFixed(3) : '0.000'}V`;
+        if (summaryMinMaxElement) summaryMinMaxElement.textContent = `Sel Aktif (Total: ${totalActiveCells}) | Min: ${minVText} V | Max: ${maxVText} V | DeltaV: ${deltaVText}`;
 
       
 
@@ -1888,7 +1894,7 @@ function updateDashboard(values, type) {
 
             timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
 
-       // updateGlobalCache('VA', values, {deltaV, totalActiveCells, minCellV, maxCellV});
+        //updateGlobalCache('VA', values, {deltaV, totalActiveCells, minCellV, maxCellV});
     }
 
     // --- 2. LOGIKA PAKET PT (Update setiap 3 detik) ---
