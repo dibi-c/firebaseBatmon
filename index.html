@@ -489,14 +489,59 @@ body:has(#halaman-jam:not(.hidden)) {
                 </button>
             </div>
         </header>
-        <div class="flex justify-between items-center mb-4">
-             <p id="wakelock-status" class="text-xs text-gray-500 dark:text-gray-400">Wakelock Off</p>
-             <p id="firestore-status" class="text-xs text-gray-500 dark:text-gray-400">Status DB: Penyimpanan Lokal (localStorage) Aktif.</p>
-            
-             <button id="upload-logs-button" onclick="uploadAllLogsToFirebase()" class="text-xs minimal-connect-btn bg-purple-500 text-white hover:bg-purple-600 transition disabled:opacity-50">
-                Upload Log ke Firebase
-            </button>
+
+     <div class="flex justify-between items-center mb-4 relative">
+    <div>
+        <p id="wakelock-status" class="text-xs text-gray-500 dark:text-gray-400">Wakelock Off</p>
+        <p id="firestore-status" class="text-xs text-gray-500 dark:text-gray-400">Status DB: Memuat...</p>
+    </div>
+
+
+    <div class="flex space-x-2">
+
+       <button id="upload-logs-button" onclick="uploadAllLogsToFirebase()" class="h-9 px-3 text-[10px] font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition shadow-md">
+            UPLOAD LOG
+        </button>
+
+        <div id="config-wrapper" class="relative transition-all duration-500 ease-in-out bg-white dark:bg-gray-800 rounded-xl overflow-hidden h-9 w-32 shadow-lg border border-gray-200 dark:border-gray-700 z-[100]">
+    
+    <button id="config-trigger-btn" onclick="expandConfigVertical(event)" class="absolute inset-0 w-full h-9 text-[10px] font-bold text-gray-700 dark:text-gray-200 flex items-center justify-center whitespace-nowrap hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        CONFIG FIREBASE
+    </button>
+
+    <div id="config-form-content" class="hidden opacity-0 p-5 flex flex-col space-y-4 w-64">
+        <div class="flex justify-between items-center mb-1">
+            <h3 class="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Firebase Setup</h3>
+            <button onclick="collapseConfigVertical()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">✕</button>
         </div>
+        
+        <div class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">API Key</label>
+                <input type="text" id="fb-apiKey" class="w-full text-xs p-2 rounded-lg outline-none border transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 focus:ring-1 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Project ID</label>
+                <input type="text" id="fb-projectId" class="w-full text-xs p-2 rounded-lg outline-none border transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 focus:ring-1 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Database URL</label>
+                <input type="text" id="fb-databaseURL" class="w-full text-xs p-2 rounded-lg outline-none border transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 focus:ring-1 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <button onclick="saveFirebaseConfig()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95">
+            SIMPAN KE LOCAL
+        </button>
+    </div>
+</div>
+
+        
+    </div>
+</div>
+
         
 
         <section id="safety-status-section" class="status-box mb-6 hidden bg-green-100 text-green-600 border border-green-400">
@@ -775,18 +820,105 @@ const ALL_DATA_MAP = [
           measurementId: "G-0NZKBGC3L3"
         };
 
-        // Inisialisasi Firebase
-        let firebaseApp;
-        let firebaseDB;
-        try {
-            firebaseApp = firebase.initializeApp(firebaseConfig);
-            firebaseDB = firebaseApp.database();
-            document.getElementById('firestore-status').textContent = 'Status DB: Firebase Realtime Database Aktif.';
-        } catch(e) {
-             document.getElementById('firestore-status').textContent = `Status DB: Firebase GAGAL Inisialisasi: ${e.message}. Hanya Penyimpanan Lokal Aktif.`;
-             console.error('Firebase initialization error:', e);
-        }
-        // --- END KONFIGURASI FIREBASE ---
+ function expandConfigVertical(event) {
+    if (event) event.stopPropagation();
+    const wrapper = document.getElementById('config-wrapper');
+    const btn = document.getElementById('config-trigger-btn');
+    const form = document.getElementById('config-form-content');
+
+    // Load data lama
+    const saved = JSON.parse(localStorage.getItem('firebase_config') || '{}');
+    document.getElementById('fb-apiKey').value = saved.apiKey || '';
+    document.getElementById('fb-projectId').value = saved.projectId || '';
+    document.getElementById('fb-databaseURL').value = saved.databaseURL || '';
+
+    // Aktifkan posisi absolute agar menutupi konten di bawah
+    wrapper.style.position = 'absolute';
+    wrapper.style.right = '0'; // Menempel ke kanan mengikuti tombol asal
+    wrapper.style.top = '0';
+    
+    // Animasi Meluas
+    wrapper.classList.remove('w-32', 'h-9');
+    wrapper.classList.add('w-64', 'h-[320px]'); // Melebar & Memanjang ke bawah
+    
+    btn.classList.add('hidden');
+
+    setTimeout(() => {
+        form.classList.remove('hidden');
+        form.classList.add('opacity-100');
+    }, 200);
+}
+
+function collapseConfigVertical() {
+    const wrapper = document.getElementById('config-wrapper');
+    const btn = document.getElementById('config-trigger-btn');
+    const form = document.getElementById('config-form-content');
+
+    form.classList.add('hidden');
+    form.classList.remove('opacity-100');
+    
+    wrapper.classList.remove('w-64', 'h-[320px]');
+    wrapper.classList.add('w-32', 'h-9');
+    
+    setTimeout(() => {
+        btn.classList.remove('hidden');
+        // Kembalikan ke posisi semula setelah animasi selesai
+        wrapper.style.position = 'relative';
+        wrapper.style.right = 'auto';
+        wrapper.style.top = 'auto';
+    }, 500);
+}
+
+// Klik sembarang tempat untuk menutup
+document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('config-wrapper');
+    if (!wrapper.contains(e.target) && wrapper.classList.contains('h-[320px]')) {
+        collapseConfigVertical();
+    }
+});
+
+function saveFirebaseConfig() {
+    const config = {
+        apiKey: document.getElementById('fb-apiKey').value.trim(),
+        projectId: document.getElementById('fb-projectId').value.trim(),
+        databaseURL: document.getElementById('fb-databaseURL').value.trim()
+    };
+    localStorage.setItem('firebase_config', JSON.stringify(config));
+    alert('Tersimpan! Menginisialisasi ulang...');
+    location.reload();
+}
+
+        // --- INISIALISASI FIREBASE DARI LOCALSTORAGE ---
+let firebaseApp;
+let firebaseDB;
+
+// Ambil config dari localStorage yang disimpan lewat modal
+const storedConfig = JSON.parse(localStorage.getItem('firebase_config'));
+
+if (storedConfig && storedConfig.apiKey && storedConfig.projectId) {
+    try {
+        // Gunakan data dari localStorage untuk inisialisasi
+        firebaseApp = firebase.initializeApp({
+            apiKey: storedConfig.apiKey,
+            projectId: storedConfig.projectId,
+            databaseURL: storedConfig.databaseURL,
+            // Anda bisa menambah authDomain atau storageBucket jika diperlukan di modal
+        });
+        
+        firebaseDB = firebaseApp.database();
+        document.getElementById('firestore-status').textContent = 'Status DB: Firebase Realtime Database Aktif.';
+        document.getElementById('firestore-status').classList.replace('text-gray-500', 'text-green-500');
+    } catch(e) {
+        document.getElementById('firestore-status').textContent = `Status DB: Gagal Inisialisasi: ${e.message}`;
+        document.getElementById('firestore-status').classList.replace('text-gray-500', 'text-red-500');
+        console.error('Firebase initialization error:', e);
+    }
+} else {
+    // Jika belum ada config di localStorage
+    document.getElementById('firestore-status').textContent = 'Status DB: Config Belum Diatur (Hanya Penyimpanan Lokal).';
+}
+// --- END KONFIGURASI FIREBASE ---
+
 
       let htmlCachePT = ""; 
       let htmlCacheER = "";
@@ -1780,6 +1912,9 @@ function updateDashboard(values, type) {
             let minCellV = Infinity;
             let maxCellV = -Infinity;
             let totalActiveCells = 0;
+
+            let deltaV;
+           
     
     
     // --- 1. LOGIKA PAKET VA (Update setiap 1 detik) ---
@@ -1855,7 +1990,8 @@ function updateDashboard(values, type) {
             }
         });
 
-            const deltaV = (maxCellV !== -Infinity && minCellV !== Infinity) ? (maxCellV - minCellV) * 1000 : 0;
+           
+            deltaV = (maxCellV !== -Infinity && minCellV !== Infinity) ? (maxCellV - minCellV) * 1000 : 0;
             const deltaVText = totalActiveCells >= 2 ? `${Math.round(deltaV)} mV` : 'N/A';
             const minVText = minCellV !== Infinity ? minCellV.toFixed(3) : '0.000';
             const maxVText = maxCellV !== -Infinity ? maxCellV.toFixed(3) : '0.000';
@@ -2075,7 +2211,9 @@ try {
     // 3. Gabungkan dengan Data Turunan & Min/Max Global yang Anda berikan
         // Pastikan variabel-variabel seperti minCellV, statusText, dll sudah didefinisikan sebelumnya
         const derivedData = {
-            // Data Turunan
+           // Gunakan titik dua (:) bukan sama dengan (=) di dalam objek
+           timestamp: Date.now(),
+            deviceName: (typeof device !== 'undefined' && device) ? device.name : 'N/A', // Data Turunan
             min_cell_voltage: typeof minCellV !== 'undefined' && minCellV !== Infinity ? minCellV : (oldData.min_cell_voltage || 0.0),
             max_cell_voltage: typeof maxCellV !== 'undefined' && maxCellV !== -Infinity ? maxCellV : (oldData.max_cell_voltage || 0.0),
             delta_voltage_mV: typeof deltaV !== 'undefined' ? Math.round(deltaV) : (oldData.delta_voltage_mV || 0),
@@ -2096,6 +2234,7 @@ try {
         };
     
     lastDashboardData = {
+       
             ...oldData,
             ...derivedData,
             ...Object.fromEntries(incomingDataEntries),
@@ -2126,10 +2265,10 @@ try {
  * Fungsi Pembantu: Kelola Cache Data Terakhir
  */
 function updateGlobalCache(type, values, meta = {}) {
- /*    lastDashboardData.timestamp = Date.now();
+ /*   lastDashboardData.timestamp = Date.now();
     lastDashboardData.deviceName = device ? device.name : 'N/A';
 
-  if (type === 'VA') {
+   if (type === 'VA') {
     // Pastikan data VA tersedia
     lastDashboardData.total_voltage = values[INDEX_VA.TOTAL_VOLTAGE] ?? 0;
     lastDashboardData.current = values[INDEX_VA.CURRENT] ?? 0;
