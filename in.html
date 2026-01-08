@@ -543,10 +543,12 @@ body:has(#halaman-jam:not(.hidden)) {
                 <div class="p-4 rounded-lg card-cap-rem">
                     <p class="text-sm font-semibold mb-1">Kapasitas Pabrik</p>
                     <p id="remaining-capacity" class="value-text">0 Ah</p>
+                   <p id="remaining-wh" class="value-text">0 Wh</p>
                 </div>
                 <div class="p-4 rounded-lg card-cap-used">
                     <p class="text-sm font-semibold mb-1">Kapasitas Sisa</p>
                     <p id="capacity-used-value" class="value-text">0 Ah</p>
+                    <p id="wh-now" class="value-text">0 Wh</p>
                 </div>
                 <div class="p-4 rounded-lg card-delta">
                     <p class="text-sm font-semibold mb-1">DeltaV Sel Aktif</p>
@@ -695,7 +697,7 @@ body:has(#halaman-jam:not(.hidden)) {
        // Pemetaan Index berdasarkan urutan float[] di Arduino
 const INDEX_VA = {
     TOTAL_VOLTAGE: 0, CELL_1: 1, CELL_2: 2, CELL_3: 3, CELL_4: 4, 
-    CURRENT: 5, POWER: 6, CAP_MAX: 7, SOC: 8
+    CURRENT: 5, POWER: 6, CAP_MAX: 7, SOC: 8, WH_NOW: 9, WH_DESIGN: 10
 };
 
 
@@ -714,33 +716,38 @@ const INDEX_ER = {
 // Kita tambahkan properti 'packet' agar tahu ini data dari VA atau PT
 const ALL_DATA_MAP = [
     // --- PAKET VA ---
-    { label: 'Tegangan Total', unit: 'V', index: INDEX_VA.TOTAL_VOLTAGE, packet: 'VA', showInExtra: false },
-    { label: 'Tegangan Sel 1', unit: 'V', index: INDEX_VA.CELL_1, packet: 'VA', showInExtra: false },
-    { label: 'Tegangan Sel 2', unit: 'V', index: INDEX_VA.CELL_2, packet: 'VA', showInExtra: false },
-    { label: 'Tegangan Sel 3', unit: 'V', index: INDEX_VA.CELL_3, packet: 'VA', showInExtra: false },
-    { label: 'Tegangan Sel 4', unit: 'V', index: INDEX_VA.CELL_4, packet: 'VA', showInExtra: false },
-    { label: 'Arus', unit: 'A', index: INDEX_VA.CURRENT, packet: 'VA', showInExtra: false },
-    { label: 'Daya', unit: 'W', index: INDEX_VA.POWER, packet: 'VA', showInExtra: false },
-    { label: 'Kapasitas Full', unit: 'Ah', index: INDEX_VA.CAP_MAX, packet: 'VA', showInExtra: false },
-    { label: 'SOC', unit: '%', index: INDEX_VA.SOC, packet: 'VA', showInExtra: false },
+    { key: 'total_v', label: 'Tegangan Total', unit: 'V', index: INDEX_VA.TOTAL_VOLTAGE, packet: 'VA', showInExtra: false },
+    { key: 'cell_1', label: 'Tegangan Sel 1', unit: 'V', index: INDEX_VA.CELL_1, packet: 'VA', showInExtra: false },
+    { key: 'cell_2', label: 'Tegangan Sel 2', unit: 'V', index: INDEX_VA.CELL_2, packet: 'VA', showInExtra: false },
+    { key: 'cell_3', label: 'Tegangan Sel 3', unit: 'V', index: INDEX_VA.CELL_3, packet: 'VA', showInExtra: false },
+    { key: 'cell_4', label: 'Tegangan Sel 4', unit: 'V', index: INDEX_VA.CELL_4, packet: 'VA', showInExtra: false },
+    { key: 'current', label: 'Arus', unit: 'A', index: INDEX_VA.CURRENT, packet: 'VA', showInExtra: false },
+    { key: 'power', label: 'Daya', unit: 'W', index: INDEX_VA.POWER, packet: 'VA', showInExtra: false },
+    { key: 'cap_max', label: 'Kapasitas Full', unit: 'Ah', index: INDEX_VA.CAP_MAX, packet: 'VA', showInExtra: false },
+    { key: 'soc', label: 'SOC', unit: '%', index: INDEX_VA.SOC, packet: 'VA', showInExtra: false },
+    { key: 'wh_now', unit: 'Wh', index: INDEX_VA.WH_NOW, packet: 'VA', showInExtra: false },
+    { key: 'wh_design', unit: 'Wh', index: INDEX_VA.WH_DESIGN, packet: 'VA', showInExtra: false },
 
     // --- PAKET PT ---
-    { label: 'Suhu Baterai', unit: '°C', index: INDEX_PT.TEMP_1, packet: 'PT', showInExtra: true, iconKey: 'THERMOMETER' }, 
-    { label: 'Suhu Mosfet', unit: '°C', index: INDEX_PT.TEMP_2, packet: 'PT', showInExtra: true, iconKey: 'THERMOMETER' }, 
-    { label: 'Kapasitas Tersisa', unit: 'Ah', index: INDEX_PT.CAP_REMAINING, packet: 'PT', showInExtra: false },
-    { label: 'Kapasitas Pengisian', unit: 'Ah', index: INDEX_PT.CAP_CHG, packet: 'PT', showInExtra: true, iconKey: 'BATTERY_HALF_SOLID' },
-    { label: 'Kapasitas Pengurasan', unit: 'Ah', index: INDEX_PT.CAP_DISCHG, packet: 'PT', showInExtra: true, iconKey: 'BATTERY_HALF_SOLID' },
-    { label: 'Relay Pengisian', unit: '', index: INDEX_PT.RELAY_CHG, packet: 'PT', showInExtra: true, iconKey: 'FLASH' },
-    { label: 'Relay Pengurasan', unit: '', index: INDEX_PT.RELAY_DISCHG, packet: 'PT', showInExtra: true, iconKey: 'FLAME' },
-    { label: 'SOH', unit: '%', index: INDEX_PT.SOH, packet: 'PT', showInExtra: false },
-    { label: 'Energy Masuk', unit: 'Wh', index: INDEX_PT.WH_POS, packet: 'PT', showInExtra: true, iconKey: 'ENERGY' },
-    { label: 'Energy Keluar', unit: 'Wh', index: INDEX_PT.WH_NEG, packet: 'PT', showInExtra: true, iconKey: 'ENERGY' },
-    { label: 'Cycle Count', unit: 'CC', index: INDEX_PT.CYCLE, packet: 'PT', showInExtra: true, iconKey: 'HEART' },
+    { key: 'temp_batt', label: 'Suhu Baterai', unit: '°C', index: INDEX_PT.TEMP_1, packet: 'PT', showInExtra: true, iconKey: 'THERMOMETER' }, 
+    { key: 'temp_mos', label: 'Suhu Mosfet', unit: '°C', index: INDEX_PT.TEMP_2, packet: 'PT', showInExtra: true, iconKey: 'THERMOMETER' }, 
+    { key: 'cap_remain', label: 'Kapasitas Tersisa', unit: 'Ah', index: INDEX_PT.CAP_REMAINING, packet: 'PT', showInExtra: false },
+    { key: 'cap_chg', label: 'Kapasitas Pengisian', unit: 'Ah', index: INDEX_PT.CAP_CHG, packet: 'PT', showInExtra: true, iconKey: 'BATTERY_HALF_SOLID' },
+    { key: 'cap_dis', label: 'Kapasitas Pengurasan', unit: 'Ah', index: INDEX_PT.CAP_DISCHG, packet: 'PT', showInExtra: true, iconKey: 'BATTERY_HALF_SOLID' },
+    { key: 'relay_chg', label: 'Relay Pengisian', unit: '', index: INDEX_PT.RELAY_CHG, packet: 'PT', showInExtra: true, iconKey: 'FLASH' },
+    { key: 'relay_dis', label: 'Relay Pengurasan', unit: '', index: INDEX_PT.RELAY_DISCHG, packet: 'PT', showInExtra: true, iconKey: 'FLAME' },
+    { key: 'soh', label: 'SOH', unit: '%', index: INDEX_PT.SOH, packet: 'PT', showInExtra: false },
+    { key: 'energy_in', label: 'Energy Masuk', unit: 'Wh', index: INDEX_PT.WH_POS, packet: 'PT', showInExtra: true, iconKey: 'ENERGY' },
+    { key: 'energy_out', label: 'Energy Keluar', unit: 'Wh', index: INDEX_PT.WH_NEG, packet: 'PT', showInExtra: true, iconKey: 'ENERGY' },
+    { key: 'cycle_count', label: 'Cycle Count', unit: 'CC', index: INDEX_PT.CYCLE, packet: 'PT', showInExtra: true, iconKey: 'HEART' },
 
-    { label: 'Error Code', unit: '', index: INDEX_ER.ERROR_CODE, packet: 'ER', showInExtra: true, iconKey: 'ENERGY' },
-    
-
-
+    // --- PAKET ER ---
+    { key: 'error_code', index: INDEX_ER.ERROR_CODE, packet: 'ER', showInExtra: false },
+    { key: 'history_error_1', index: INDEX_ER.HIS_1, packet: 'ER', showInExtra: false },
+    { key: 'history_error_2', index: INDEX_ER.HIS_2, packet: 'ER', showInExtra: false },
+    { key: 'history_error_3', index: INDEX_ER.HIS_3, packet: 'ER', showInExtra: false },
+    { key: 'history_error_4', index: INDEX_ER.HIS_4, packet: 'ER', showInExtra: false },
+    { key: 'history_error_5', index: INDEX_ER.HIS_5, packet: 'ER', showInExtra: false },
 ];
         
         // --- KONFIGURASI GRAFIK WH BARU ---
@@ -758,13 +765,14 @@ const ALL_DATA_MAP = [
         
         // --- KONFIGURASI FIREBASE ---
         const firebaseConfig = {
-           // apiKey: "AIzaSyDLlc2nBOG6hesoQmhTD55BuRc5l7UF87I",
-            authDomain: "batmon-5c279.firebaseapp.com",
-           // databaseURL: "https://batmon-5c279-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "batmon-5c279",
-            //storageBucket: "batmon-5c279.firebasestorage.app",
-            messagingSenderId: "718766895236",
-            //appId: "1:718766895236:web:b5dd36e93aaa114bcd52d1"
+           apiKey: "AIzaSyC9eBW7aVC7Rb8Z8SQqWhWoFNJSQDxJPT8",
+           authDomain: "batmon3s.firebaseapp.com",
+           databaseURL: "https://batmon3s-default-rtdb.asia-southeast1.firebasedatabase.app",
+           projectId: "batmon3s",
+           storageBucket: "batmon3s.firebasestorage.app",
+           messagingSenderId: "99805076488",
+          appId: "1:99805076488:web:d65fc114b1ae6eeaa505bd",
+          measurementId: "G-0NZKBGC3L3"
         };
 
         // Inisialisasi Firebase
@@ -809,7 +817,9 @@ const ALL_DATA_MAP = [
         const powerElement = document.getElementById('power-value');
         const minMaxPowerElement = document.getElementById('min-max-power'); 
         const capacityUsedElement = document.getElementById('capacity-used-value');
+        const whNowElement = document.getElementById('wh-now');
         const remainingCapacityElement = document.getElementById('remaining-capacity');
+        const remainingWhElement = document.getElementById('remaining-wh');
         const deltaVElement = document.getElementById('delta-v-value');
         const socValueElement = document.getElementById('soc-value');
         const socProgressElement = document.getElementById('soc-progress');
@@ -936,30 +946,28 @@ function formatTime(hours) {
 }
   
       
-  function parseData(dataView, type) {
+ function parseData(dataView, type) {
     const actualLength = dataView.byteLength;
     let expectedLength = 0;
-    let numFloats = 0;
+    let isByteType = false; // Flag untuk membedakan ER dengan VA/PT
 
     // Tentukan aturan berdasarkan tipe yang dikirim
     if (type === 'VA') {
-        expectedLength = 38;
-        numFloats = 9;
+        expectedLength = 46;
     } else if (type === 'PT') {
         expectedLength = 46;
-        numFloats = 11;
     } else if (type === 'ER') {
-        expectedLength = 26;
-        numFloats = 6;
+        expectedLength = 8; // 1 Header + 6 Data + 1 Checksum
+        isByteType = true;
     }
 
     // Validasi panjang
     if (actualLength !== expectedLength) {
-        console.error(`[${type}] Panjang salah: ${actualLength}`);
+        console.error(`[${type}] Panjang salah: ${actualLength} (Harusnya ${expectedLength})`);
         return null;
     }
 
-    // Validasi Checksum (menggunakan logika XOR yang sama)
+    // Validasi Checksum
     const bodyData = new Uint8Array(dataView.buffer, dataView.byteOffset + 1, actualLength - 2);
     const receivedChecksum = dataView.getUint8(actualLength - 1);
     if (receivedChecksum !== calculateChecksum(bodyData)) {
@@ -967,13 +975,21 @@ function formatTime(hours) {
         return null;
     }
 
-    // Ambil data float
     const values = [];
-    for (let i = 0; i < numFloats; i++) {
-        values.push(dataView.getFloat32(1 + (i * 4), true));
+    if (isByteType) {
+        // Ambil data per 1 byte (Khusus ER)
+        for (let i = 0; i < 6; i++) {
+            values.push(dataView.getUint8(1 + i));
+        }
+    } else {
+        // Ambil data per 4 byte (Untuk VA dan PT)
+        let numFloats = (expectedLength - 2) / 4;
+        for (let i = 0; i < numFloats; i++) {
+            values.push(dataView.getFloat32(1 + (i * 4), true));
+        }
     }
 
-    return values; // Kembalikan array berisi angka-angka
+    return values;
 }
    
 
@@ -1043,13 +1059,13 @@ async function sendRequestCustom(char1, char2) {
 
         // Identifikasi paket berdasarkan Header
 if (header === 0xAA) {
-    targetLength = 38; // Paket Volt/Amp (VA)
+    targetLength = 46; // Paket Volt/Amp (VA)
     currentPacketType = 'VA';
 } else if (header === 0xCC) {
     targetLength = 46; // Paket Parameter (PT)
     currentPacketType = 'PT';
 } else if (header === 0xEE) {
-    targetLength = 26; 
+    targetLength = 8; 
     currentPacketType = 'ER'; // <--- UBAH INI JADI ER
 } else {
     console.warn(`🗑️ Skipping byte: 0x${header.toString(16).toUpperCase()}`);
@@ -1302,7 +1318,7 @@ if (parsedValues) {
               const erInterval = setInterval(() => {
                   sendRequestCustom('E', 'R');
               }, 4000);
-              requestIntervals.push(ptInterval);
+              requestIntervals.push(erInterval);
           }, 500);
 
 
@@ -1750,7 +1766,17 @@ function updateDashboard(values, type) {
 
     const isDark = document.body.classList.contains('dark');
     const extraParametersContainer = document.getElementById('extra-parameters');
-   
+
+      // --- Logika Perhitungan Waktu Sisa ---
+            const remainingCap = values[INDEX_PT.CAP_REMAINING]; // Kapasitas Tersisa (Ah)
+            const fullCap = values[INDEX_VA.CAP_MAX];       // Kapasitas Penuh (Ah)
+            const current = values[INDEX_VA.CURRENT];       // Arus (A)
+            const capToFull = fullCap - remainingCap;           // Kapasitas yang diperlukan untuk penuh (Ah)
+
+            let timeRemainingText;
+            let timeToEmptyHours = 0;
+            let timeToFullHours = 0;
+    
     
     // --- 1. LOGIKA PAKET VA (Update setiap 1 detik) ---
     if (type === 'VA') {
@@ -1760,17 +1786,21 @@ function updateDashboard(values, type) {
         const currentPower = values[INDEX_VA.POWER] || 0;
         const currentSoc = Math.min(100, Math.max(0, values[INDEX_VA.SOC] || 0));
         const capMax = values[INDEX_VA.CAP_MAX] || 0;
+        const whNow = values[INDEX_VA.WH_NOW] || 0;
+        const whMax = values[INDEX_VA.WH_DESIGN] || 0;
 
         // A. Update Ringkasan Utama (Atas)
         if (totalVoltageElement) totalVoltageElement.textContent = `${currentTotalVoltage.toFixed(2)} V`;
         if (currentElement) currentElement.textContent = `${currentCurrent.toFixed(2)} A`;
         if (powerElement) powerElement.textContent = `${currentPower.toFixed(2)} W`;
+        if (whNowElement) whNowElement.textContent = `${whNow.toFixed(2)} Wh`;
         
         if (socValueElement) {
             socValueElement.textContent = `${currentSoc.toFixed(1)}%`;
             socProgressElement.style.width = `${currentSoc}%`;
         }
         if (remainingCapacityElement) remainingCapacityElement.textContent = `${capMax.toFixed(2)} Ah`;
+         if (remainingWhElement) remainingWhElement.textContent = `${whMax.toFixed(2)} Wh`;
 
         // B. Update Min/Max Trackers
         if (currentTotalVoltage > 1.0) {
@@ -1823,24 +1853,42 @@ function updateDashboard(values, type) {
             }
         });
 
-        const deltaV = (totalActiveCells >= 2) ? (maxCellV - minCellV) * 1000 : 0;
+        const deltaV = (maxCellV !== -Infinity && minCellV !== Infinity) ? (maxCellV - minCellV) * 1000 : 0;
         if (deltaVElement) deltaVElement.textContent = totalActiveCells >= 2 ? `${Math.round(deltaV)} mV` : 'N/A';
         if (summaryMinMaxElement) summaryMinMaxElement.textContent = `Sel Aktif: ${totalActiveCells} | Min: ${totalActiveCells ? minCellV.toFixed(3) : '0.000'}V | Max: ${totalActiveCells ? maxCellV.toFixed(3) : '0.000'}V`;
 
-        // D. Logika Waktu Sisa
-        const capRemaining = lastDashboardData.capacity_remaining || 0;
-        const capFull = capMax;
-        let timeText = "Diam";
-        if (currentCurrent > 0.1) {
-            const hours = (capFull - capRemaining) / currentCurrent;
-            timeText = capRemaining >= capFull ? "Penuh" : formatTime(hours) + " (TTF)";
-        } else if (currentCurrent < -0.1) {
-            const hours = capRemaining / Math.abs(currentCurrent);
-            timeText = capRemaining <= 0 ? "Habis" : formatTime(hours) + " (TTE)";
-        }
-        if (timeRemainingElement) timeRemainingElement.textContent = `Waktu Sisa: ${timeText}`;
+      
 
-        updateGlobalCache('VA', values, {deltaV, totalActiveCells, minCellV, maxCellV});
+            // Kasus Arus Nol atau Sangat Kecil
+            if (current === 0 || Math.abs(current) < 0.1) {
+                timeRemainingText = "Diam";
+            } 
+            // Kasus Pengisian (Charging)
+            else if (current > 0) {
+                // Cek kondisi penuh untuk TTF
+                if (remainingCap >= fullCap) {
+                    timeRemainingText = "Penuh (TTF)";
+                } else {
+                    // CHARGE (TTF): (Kapasitas Penuh - Kapasitas Sisa) / Arus Charge (Jam)
+                    timeToFullHours = capToFull / current;
+                    timeRemainingText = formatTime(timeToFullHours) + " (TTF)";
+                }
+            } 
+            // Kasus Pengosongan (Discharging)
+            else {
+                // Cek kondisi habis untuk TTE
+                if (remainingCap <= 0) {
+                    timeRemainingText = "Habis (TTE)";
+                } else {
+                    // DISCHARGE (TTE): Kapasitas Sisa / Nilai Absolut Arus Discharge (Jam)
+                    timeToEmptyHours = remainingCap / Math.abs(current);
+                    timeRemainingText = formatTime(timeToEmptyHours) + " (TTE)";
+                }
+            }
+
+            timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
+
+       // updateGlobalCache('VA', values, {deltaV, totalActiveCells, minCellV, maxCellV});
     }
 
     // --- 2. LOGIKA PAKET PT (Update setiap 3 detik) ---
@@ -1851,6 +1899,7 @@ function updateDashboard(values, type) {
         const capRem = values[INDEX_PT.CAP_REMAINING] || 0;
         const whPos = values[INDEX_PT.WH_POS] || 0;
         const whNeg = values[INDEX_PT.WH_NEG] || 0;
+        
 
         const maxTemp = Math.max(tempBattery, tempMosfet);
         if (tempValueElement) tempValueElement.textContent = `${maxTemp.toFixed(1)}°C`;
@@ -1911,17 +1960,16 @@ else if (type === 'ER') {
     // 3. Fungsi Mapping (Keterangan Error)
     const getErrorDescription = (code) => {
         const errorMap = {
-            0: "Sistem Normal",
-            1: "Overvoltage (Tegangan Tinggi)",
-            2: "Undervoltage (Tegangan Rendah)",
-            3: "Overcurrent Charge (Arus Cas)",
-            4: "Overcurrent Discharge (Arus Beban)",
-            5: "Suhu Baterai Panas",
-            6: "Suhu Baterai Dingin",
-            7: "Suhu MOSFET Panas",
-            8: "Short Circuit (Hubung Singkat)",
-            9: "Cell Unbalance (Tidak Seimbang)",
-            10: "Kegagalan Sensor Internal"
+    0: "Sistem Normal",
+    1: "Tegangan Sel di Bawah Ambang Batas (2.5V)",
+    3: "Kesalahan Penulisan/Pembacaan Memori EEPROM",
+    4: "Proteksi Suhu: Terdeteksi Anomali Suhu Operasional",
+    5: "Aktivasi Sistem Trip: Gagal Reaktivasi Deteksi Arus Terpasang",
+    6: "Terdeteksi Hubungan Arus Pendek (Short Circuit)",
+    7: "Proteksi Arus Berlebih (Overcurrent Detected)",
+    8: "Tegangan Baterai Sangat Rendah: Diperlukan Pengisian Daya",
+    9: "Proteksi Pengisian: Tegangan Melebihi Batas Aman",
+    10: "Tegangan Baterai Rendah: Diperlukan Pengisian Daya"
         };
         return errorMap[code] || `Unknown Error (${code})`;
     };
@@ -2002,6 +2050,69 @@ historyHtml += `</div></div>`;
     }
 }
 
+// --- 7. Kumpulkan dan Simpan Data Dashboard ke lastDashboardData ---
+try {
+    // Pastikan values tidak kosong sebelum diproses
+    if (!values || values.length === 0) {
+        console.warn("⚠️ Data values kosong, melewati proses pengumpulan data.");
+        return;
+    }
+
+   // 1. Ambil snapshot data lama agar nilai dari paket lain tidak hilang
+        const oldData = { ...lastDashboardData };
+
+        // 2. Filter data hanya yang berasal dari paket yang masuk saat ini (VA atau PT)
+        const incomingDataEntries = ALL_DATA_MAP
+            .filter(d => d.packet === type)
+            .map(d => [d.key, values[d.index] !== undefined ? values[d.index] : 0]);
+
+    // 3. Gabungkan dengan Data Turunan & Min/Max Global yang Anda berikan
+        // Pastikan variabel-variabel seperti minCellV, statusText, dll sudah didefinisikan sebelumnya
+        const derivedData = {
+            // Data Turunan
+            min_cell_voltage: typeof minCellV !== 'undefined' && minCellV !== Infinity ? minCellV : (oldData.min_cell_voltage || 0.0),
+            max_cell_voltage: typeof maxCellV !== 'undefined' && maxCellV !== -Infinity ? maxCellV : (oldData.max_cell_voltage || 0.0),
+            delta_voltage_mV: typeof deltaV !== 'undefined' ? Math.round(deltaV) : (oldData.delta_voltage_mV || 0),
+            safety_status_text: typeof statusText !== 'undefined' ? statusText : (oldData.safety_status_text || "Normal"),
+            safety_message: typeof safetyMsg !== 'undefined' ? safetyMsg : (oldData.safety_message || "Semua normal"),
+            
+            // Data Min/Max Global
+            min_total_voltage: minTotalVoltage !== Infinity ? minTotalVoltage : (oldData.min_total_voltage || 0.0),
+            max_total_voltage: maxTotalVoltage !== -Infinity ? maxTotalVoltage : (oldData.max_total_voltage || 0.0),
+            min_current: minCurrent !== Infinity ? minCurrent : (oldData.min_current || 0.0),
+            max_current: maxCurrent !== -Infinity ? maxCurrent : (oldData.max_current || 0.0),
+            min_power: minPower !== Infinity ? minPower : (oldData.min_power || 0.0),
+            max_power: maxPower !== -Infinity ? maxPower : (oldData.max_power || 0.0),
+            
+            // Estimasi Waktu
+            time_to_empty_hours: (typeof current !== 'undefined' && current < 0) ? timeToEmptyHours : 0.0,
+            time_to_full_hours: (typeof current !== 'undefined' && current > 0) ? timeToFullHours : 0.0
+        };
+    
+    lastDashboardData = {
+            ...oldData,
+            ...derivedData,
+            ...Object.fromEntries(incomingDataEntries),
+            last_updated: new Date().toISOString(),
+    };
+
+   // 4. Kirim ke Firebase (Gunakan update agar tidak menghapus field lain)
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            firebase.database().ref('current_data').update(lastDashboardData)
+                .catch(err => console.error("Firebase Update Error:", err));
+        }
+
+       
+
+    } catch (e) {
+        console.error("❌ Error saat menyusun data dashboard:", e);
+    }
+
+// 4. Update DOM (Pindahkan ke bagian akhir agar jika upload gagal, UI tetap update)
+//safetyStatusSection.className = `status-box mb-6 border ${safetyClass}`;
+//safetyStatusSection.classList.remove('hidden'); 
+//safetyStatusText.textContent = statusText;
+//safetyMessage.textContent = safetyMsg;
   
 }
 
@@ -2009,10 +2120,10 @@ historyHtml += `</div></div>`;
  * Fungsi Pembantu: Kelola Cache Data Terakhir
  */
 function updateGlobalCache(type, values, meta = {}) {
-    lastDashboardData.timestamp = Date.now();
+ /*    lastDashboardData.timestamp = Date.now();
     lastDashboardData.deviceName = device ? device.name : 'N/A';
 
-   if (type === 'VA') {
+  if (type === 'VA') {
     // Pastikan data VA tersedia
     lastDashboardData.total_voltage = values[INDEX_VA.TOTAL_VOLTAGE] ?? 0;
     lastDashboardData.current = values[INDEX_VA.CURRENT] ?? 0;
@@ -2037,6 +2148,7 @@ function updateGlobalCache(type, values, meta = {}) {
 } else {
     console.error("❌ Tipe data tidak dikenal:", type);
 }
+    */
 }
 
 /**
@@ -2073,9 +2185,16 @@ function updateSafetyStatus(maxTemp, soh, relayChg, relayDis, errorCode = 0) {
     // Mapping Error
     const getBmsErrorMsg = (code) => {
         const errors = {
-            1: "Overvoltage", 2: "Undervoltage", 3: "Overcurrent Charge",
-            4: "Overcurrent Discharge", 5: "Over Temp", 6: "Under Temp",
-            7: "MOSFET Overheat", 8: "Short Circuit", 9: "Cell Unbalance", 10: "Internal Error"
+    0: "Sistem Normal",
+    1: "Tegangan Sel di Bawah Ambang Batas (2.5V)",
+    3: "Kesalahan Penulisan/Pembacaan Memori EEPROM",
+    4: "Proteksi Suhu: Terdeteksi Anomali Suhu Operasional",
+    5: "Aktivasi Sistem Trip: Gagal Reaktivasi Deteksi Arus Terpasang",
+    6: "Terdeteksi Hubungan Arus Pendek (Short Circuit)",
+    7: "Proteksi Arus Berlebih (Overcurrent Detected)",
+    8: "Tegangan Baterai Sangat Rendah: Diperlukan Pengisian Daya",
+    9: "Proteksi Pengisian: Tegangan Melebihi Batas Aman",
+    10: "Tegangan Baterai Rendah: Diperlukan Pengisian Daya"
         };
         return errors[code] || `BMS Error (${code})`;
     };
@@ -2120,6 +2239,8 @@ function updateSafetyStatus(maxTemp, soh, relayChg, relayDis, errorCode = 0) {
         alarm.pause();
         alarm.currentTime = 0;
     }
+
+    
 }
         
         // --- FUNGSI BARU UNTUK FIREBASE ---
@@ -2283,10 +2404,10 @@ async function startAutoUploadInterval() {
             // Muat tema sebelum memuat data
             loadTheme(); 
             
-            const initialValues = Array(20).fill(0.0);
+            const initialValues = Array(28).fill(0.0);
 
-// Panggil secara spesifik agar struktur HTML terbentuk
-updateDashboard(initialValues);
+          // Panggil secara spesifik agar struktur HTML terbentuk
+           updateDashboard(initialValues);
             
             // Muat grafik awal dari localStorage
             await fetchAndRenderGraphs(selectedPeriod);
