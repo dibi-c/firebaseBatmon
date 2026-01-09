@@ -686,6 +686,17 @@ body:has(#halaman-jam:not(.hidden)) {
 
     <script src="chart.js"></script>
     <script type="text/javascript">
+
+
+
+    // Set ke false untuk mematikan semua log dan memperingan kerja browser
+const DEBUG_MODE = false; 
+
+if (!DEBUG_MODE) {
+    console.log = function() {};
+    console.warn = function() {};
+    console.error = function() {};
+}
         // --- UUID Konfigurasi Perangkat ---
         const UART_SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb'; 
         const TX_CHARACTERISTIC_UUID = '0000ffe2-0000-1000-8000-00805f9b34fb'; 
@@ -1888,6 +1899,15 @@ function renderEnergyCharts(data, periodLabel) {
     errorCode: 0
 };
 
+
+// Fungsi pembantu untuk mengambil angka dari UI berdasarkan KEY
+function getValueFromUI(key) {
+    // Sesuaikan ID ini dengan bagaimana sistem Anda menamai elemennya
+    // Biasanya: document.getElementById(key + '-val') atau document.getElementById('value-' + key)
+    const el = document.getElementById(key + '-val'); 
+    return el ? parseFloat(el.textContent) || 0 : 0;
+}
+
         // --- Update Dashboard (Termasuk logic Min/Max baru) ---
 /**
  * FUNGSI UTAMA: Update Dashboard
@@ -1900,12 +1920,22 @@ function updateDashboard(values, type) {
     const extraParametersContainer = document.getElementById('extra-parameters');
 
       // --- Logika Perhitungan Waktu Sisa ---
-            const remainingCap = values[INDEX_PT.CAP_REMAINING]; // Kapasitas Tersisa (Ah)
-            const fullCap = values[INDEX_VA.CAP_MAX];       // Kapasitas Penuh (Ah)
-            const current = values[INDEX_VA.CURRENT];       // Arus (A)
-            const capToFull = fullCap - remainingCap;           // Kapasitas yang diperlukan untuk penuh (Ah)
+            
+          // --- 1. Ambil data dari elemen UI (Gunakan teks yang sedang tampil di layar) ---
+// Kita ambil angka saja menggunakan parseFloat
+const currentFromUI = parseFloat(document.getElementById('current-value').textContent) || 0;
+const capRemFromUI = parseFloat(document.getElementById('capacity-used-value').textContent) || 0;
+// 1. Ambil data dari UI menggunakan Key yang Anda definisikan
+const fullCap = getValueFromUI('cap_chg');      // Dari key: 'cap_chg'
 
-            let timeRemainingText;
+
+// Variabel lokal untuk perhitungan di fungsi ini
+let currentRem = currentFromUI;
+let remainingCap = capRemFromUI;
+
+
+
+            let timeRemainingText = "";
             let timeToEmptyHours = 0;
             let timeToFullHours = 0;
 
@@ -1914,9 +1944,28 @@ function updateDashboard(values, type) {
             let totalActiveCells = 0;
 
             let deltaV;
-           
-    
-    
+
+
+            
+if (Math.abs(currentRem) < 0.1) {
+    timeRemainingText = "Diam";
+} 
+else if (currentRem > 0) {
+    // Charging (Menuju Cap Chg)
+    const capToFull = fullCap - remainingCap;
+    // Safety check agar tidak membagi dengan nol atau hasil negatif
+    const hours = capToFull > 0 ? capToFull / currentRem : 0;
+    timeRemainingText = formatTime(hours) + " (TTF)";
+} 
+else {
+    // Discharging (Menuju 0)
+    const hours = remainingCap / Math.abs(currentRem);
+    timeRemainingText = formatTime(hours) + " (TTE)";
+}
+
+timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
+
+
     // --- 1. LOGIKA PAKET VA (Update setiap 1 detik) ---
     if (type === 'VA') {
         // Gunakan fallback || 0 agar .toFixed() tidak error jika data undefined
@@ -2000,36 +2049,10 @@ function updateDashboard(values, type) {
         if (summaryMinMaxElement) summaryMinMaxElement.textContent = `Sel Aktif (Total: ${totalActiveCells}) | Min: ${minVText} V | Max: ${maxVText} V | DeltaV: ${deltaVText}`;
 
       
+          
 
-            // Kasus Arus Nol atau Sangat Kecil
-            if (current === 0 || Math.abs(current) < 0.1) {
-                timeRemainingText = "Diam";
-            } 
-            // Kasus Pengisian (Charging)
-            else if (current > 0) {
-                // Cek kondisi penuh untuk TTF
-                if (remainingCap >= fullCap) {
-                    timeRemainingText = "Penuh (TTF)";
-                } else {
-                    // CHARGE (TTF): (Kapasitas Penuh - Kapasitas Sisa) / Arus Charge (Jam)
-                    timeToFullHours = capToFull / current;
-                    timeRemainingText = formatTime(timeToFullHours) + " (TTF)";
-                }
-            } 
-            // Kasus Pengosongan (Discharging)
-            else {
-                // Cek kondisi habis untuk TTE
-                if (remainingCap <= 0) {
-                    timeRemainingText = "Habis (TTE)";
-                } else {
-                    // DISCHARGE (TTE): Kapasitas Sisa / Nilai Absolut Arus Discharge (Jam)
-                    timeToEmptyHours = remainingCap / Math.abs(current);
-                    timeRemainingText = formatTime(timeToEmptyHours) + " (TTE)";
-                }
-            }
-
-            timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
-
+         
+           
         //updateGlobalCache('VA', values, {deltaV, totalActiveCells, minCellV, maxCellV});
     }
 
@@ -2050,7 +2073,7 @@ function updateDashboard(values, type) {
             sohProgressElement.style.width = `${currentSoh}%`;
         }
         if (capacityUsedElement) capacityUsedElement.textContent = `${capRem.toFixed(2)} Ah`;
-
+       
         let extraHtml = '';
         ALL_DATA_MAP.filter(d => d.showInExtra && d.packet === 'PT').forEach(dataInfo => {
             const val = values[dataInfo.index] || 0;
