@@ -393,6 +393,9 @@ body:has(#halaman-jam:not(.hidden)) {
     </script>
 
 
+    
+
+
 <div id="halaman-jam" class="hidden flex flex-col landscape:flex-row items-center justify-evenly min-h-screen bg-black overflow-hidden p-4">
 
     <button class="fs-btn fixed top-4 right-4 z-50" onclick="toggleFullscreen()">
@@ -1935,9 +1938,9 @@ let remainingCap = capRemFromUI;
 
 
 
-            let timeRemainingText = "";
-            let timeToEmptyHours = 0;
-            let timeToFullHours = 0;
+           let timeRemainingText;
+           let timeToEmptyHours = null; // Inisialisasi dengan null atau 0
+           let timeToFullHours = null;
 
             let minCellV = Infinity;
             let maxCellV = -Infinity;
@@ -1954,13 +1957,17 @@ else if (currentRem > 0) {
     // Charging (Menuju Cap Chg)
     const capToFull = fullCap - remainingCap;
     // Safety check agar tidak membagi dengan nol atau hasil negatif
-    const hours = capToFull > 0 ? capToFull / currentRem : 0;
-    timeRemainingText = formatTime(hours) + " (TTF)";
+    // Simpan hasil ke variabel timeToFullHours
+    timeToFullHours = capToFull > 0 ? capToFull / currentRem : 0;
+    
+    timeRemainingText = formatTime(timeToFullHours) + " (TTF)";
 } 
 else {
     // Discharging (Menuju 0)
-    const hours = remainingCap / Math.abs(currentRem);
-    timeRemainingText = formatTime(hours) + " (TTE)";
+   // Simpan hasil ke variabel timeToEmptyHours
+    timeToEmptyHours = remainingCap / Math.abs(currentRem);
+    
+    timeRemainingText = formatTime(timeToEmptyHours) + " (TTE)";
 }
 
 timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
@@ -2252,8 +2259,8 @@ try {
             max_power: maxPower !== -Infinity ? maxPower : (oldData.max_power || 0.0),
             
             // Estimasi Waktu
-            time_to_empty_hours: (typeof current !== 'undefined' && current < 0) ? timeToEmptyHours : 0.0,
-            time_to_full_hours: (typeof current !== 'undefined' && current > 0) ? timeToFullHours : 0.0
+            time_to_empty_hours: (typeof oldData.current !== 'undefined' && oldData.current < 0) ? timeToEmptyHours : 0.0,
+            time_to_full_hours: (typeof oldData.current !== 'undefined' && oldData.current > 0) ? timeToFullHours : 0.0
         };
     
     lastDashboardData = {
