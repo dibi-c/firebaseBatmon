@@ -1910,7 +1910,7 @@ function getValueFromUI(key) {
     const el = document.getElementById(key + '-val'); 
     return el ? parseFloat(el.textContent) || 0 : 0;
 }
-
+let fullCap;
         // --- Update Dashboard (Termasuk logic Min/Max baru) ---
 /**
  * FUNGSI UTAMA: Update Dashboard
@@ -1929,7 +1929,7 @@ function updateDashboard(values, type) {
 const currentFromUI = parseFloat(document.getElementById('current-value').textContent) || 0;
 const capRemFromUI = parseFloat(document.getElementById('capacity-used-value').textContent) || 0;
 // 1. Ambil data dari UI menggunakan Key yang Anda definisikan
-const fullCap = getValueFromUI('cap_chg');      // Dari key: 'cap_chg'
+
 
 
 // Variabel lokal untuk perhitungan di fungsi ini
@@ -2071,6 +2071,7 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
         const capRem = values[INDEX_PT.CAP_REMAINING] || 0;
         const whPos = values[INDEX_PT.WH_POS] || 0;
         const whNeg = values[INDEX_PT.WH_NEG] || 0;
+        fullCap = values[INDEX_PT.CAP_CHG] || 0;
         
 
         const maxTemp = Math.max(tempBattery, tempMosfet);
@@ -2591,18 +2592,18 @@ async function startAutoUploadInterval() {
           // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
           startAutoUploadInterval();
 
-           initNumbers();
-           updateJamRealtime();
+          // initNumbers();
+           //updateJamRealtime();
            // Gunakan pembersihan untuk menghindari duplikasi interval
-        clearInterval(jamInterval);
-        jamInterval = setInterval(updateJamRealtime, 1000);
+        //clearInterval(jamInterval);
+       // jamInterval = setInterval(updateJamRealtime, 1000);
         
       
 
         // 5. Cuaca (10 menit sekali)
-        fetchWeatherByGPS();
-        clearInterval(weatherInterval);
-        weatherInterval = setInterval(fetchWeatherByGPS, 600000);
+        //fetchWeatherByGPS();
+        //clearInterval(weatherInterval);
+        //weatherInterval = setInterval(fetchWeatherByGPS, 600000);
 
   
 
