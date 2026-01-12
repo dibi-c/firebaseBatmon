@@ -584,9 +584,23 @@ body:has(#halaman-jam:not(.hidden)) {
             </div>
         </div>
 
-        <button onclick="saveFirebaseConfig()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95">
-            SIMPAN KE LOCAL
+<input type="file" id="fb-import-file" class="hidden" accept=".json" onchange="importConfigFile(event)">
+
+<div class="flex flex-col space-y-2 mt-2">
+    <button onclick="saveFirebaseConfig()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg transition-all">
+        SIMPAN KE LOCAL
+    </button>
+    
+    <div class="flex space-x-2">
+        <button onclick="exportConfigFile()" class="w-1/2 py-2 bg-gray-600 hover:bg-gray-500 text-white text-[10px] font-bold rounded-lg transition-all">
+            EXPORT JSON
         </button>
+        <button onclick="document.getElementById('fb-import-file').click()" class="w-1/2 py-2 bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold rounded-lg transition-all">
+            IMPORT JSON
+        </button>
+    </div>
+</div>
+        
     </div>
 </div>
 
@@ -872,17 +886,56 @@ const ALL_DATA_MAP = [
         
         
         // --- KONFIGURASI FIREBASE ---
-        const firebaseConfig = {
-           apiKey: "AIzaSyC9eBW7aVC7Rb8Z8SQqWhWoFNJSQDxJPT8",
-           authDomain: "batmon3s.firebaseapp.com",
-           databaseURL: "https://batmon3s-default-rtdb.asia-southeast1.firebasedatabase.app",
-           projectId: "batmon3s",
-           storageBucket: "batmon3s.firebasestorage.app",
-           messagingSenderId: "99805076488",
-          appId: "1:99805076488:web:d65fc114b1ae6eeaa505bd",
-          measurementId: "G-0NZKBGC3L3"
-        };
 
+        
+
+// FUNGSI EXPORT: Mengunduh config sebagai file .json
+function exportConfigFile() {
+    const config = {
+        apiKey: document.getElementById('fb-apiKey').value.trim(),
+        projectId: document.getElementById('fb-projectId').value.trim(),
+        databaseURL: document.getElementById('fb-databaseURL').value.trim()
+    };
+
+    if (!config.apiKey || !config.projectId) {
+        alert("Config kosong, tidak ada yang bisa diexport.");
+        return;
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 4));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "firebase_config.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+}
+
+// FUNGSI IMPORT: Membaca file JSON dan menyimpannya ke LocalStorage
+function importConfigFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const config = JSON.parse(e.target.result);
+            
+            // Validasi sederhana
+            if (config.apiKey && config.projectId) {
+                localStorage.setItem('firebase_config', JSON.stringify(config));
+                alert('Config berhasil di-import! Halaman akan memuat ulang.');
+                location.reload(); // Refresh untuk inisialisasi Firebase baru
+            } else {
+                alert('Format file JSON tidak valid untuk Firebase Config.');
+            }
+        } catch (err) {
+            alert('Gagal membaca file: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+        
  function expandConfigVertical(event) {
     if (event) event.stopPropagation();
     const wrapper = document.getElementById('config-wrapper');
@@ -902,7 +955,7 @@ const ALL_DATA_MAP = [
     
     // Animasi Meluas
     wrapper.classList.remove('w-32', 'h-9');
-    wrapper.classList.add('w-64', 'h-[320px]'); // Melebar & Memanjang ke bawah
+    wrapper.classList.add('w-64', 'h-[350px]'); // Melebar & Memanjang ke bawah
     
     btn.classList.add('hidden');
 
@@ -920,7 +973,7 @@ function collapseConfigVertical() {
     form.classList.add('hidden');
     form.classList.remove('opacity-100');
     
-    wrapper.classList.remove('w-64', 'h-[320px]');
+    wrapper.classList.remove('w-64', 'h-[350px]');
     wrapper.classList.add('w-32', 'h-9');
     
     setTimeout(() => {
@@ -2159,7 +2212,7 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
         if (extraParametersContainer) extraParametersContainer.innerHTML = extraHtml;
 
         updateSafetyStatus(maxTemp, currentSoh, values[INDEX_PT.RELAY_CHG], values[INDEX_PT.RELAY_DISCHG]);
-        updateGlobalCache('PT', values);
+       // updateGlobalCache('PT', values);
     }
 
    // --- 3. LOGIKA PAKET ER (PERBAIKAN) ---
@@ -2317,8 +2370,7 @@ try {
        
             ...oldData,
             ...derivedData,
-            ...Object.fromEntries(incomingDataEntries),
-            last_updated: new Date().toISOString(),
+            ...Object.fromEntries(incomingDataEntries)
     };
 
    // 4. Kirim ke Firebase (Gunakan update agar tidak menghapus field lain)
