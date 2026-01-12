@@ -1,6 +1,6 @@
 {
-  "name": "Battery Monitor dibi",
-  "short_name": "Batmon",
+  "name": "Battery Monitor",
+  "short_name": "Batmon Server",
   "description": "Monitoring Status Baterai",
   "start_url": "./index.html",
   "display": "standalone",
