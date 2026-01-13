@@ -2060,7 +2060,7 @@ if (Math.abs(currentRem) < 0.1) {
 } 
 else if (currentRem > 0) {
     // Charging (Menuju Cap Chg)
-    const capToFull = fullCap - remainingCap;
+    const capToFull = fullCap - capRemFromUI;
     // Safety check agar tidak membagi dengan nol atau hasil negatif
     // Simpan hasil ke variabel timeToFullHours
     timeToFullHours = capToFull > 0 ? capToFull / currentRem : 0;
