@@ -1945,6 +1945,7 @@ function getValueFromUI(key) {
     return el ? parseFloat(el.textContent) || 0 : 0;
 }
 let fullCap;
+   let dchgCap ;
         // --- Update Dashboard (Termasuk logic Min/Max baru) ---
 /**
  * FUNGSI UTAMA: Update Dashboard
@@ -1968,7 +1969,9 @@ const capRemFromUI = parseFloat(document.getElementById('capacity-used-value').t
 
 // Variabel lokal untuk perhitungan di fungsi ini
 let currentRem = currentFromUI;
-let remainingCap = capRemFromUI;
+    // Hasil akan menjadi 0 jika dchgCap lebih besar dari fullCap
+let diff = Math.max(0, fullCap - dchgCap);
+let remainingCap = capRemFromUI - diff;
 
 
 
@@ -1989,7 +1992,7 @@ if (Math.abs(currentRem) < 0.1) {
 } 
 else if (currentRem > 0) {
     // Charging (Menuju Cap Chg)
-    const capToFull = fullCap - remainingCap;
+    const capToFull = fullCap - capRemFromUI;
     // Safety check agar tidak membagi dengan nol atau hasil negatif
     // Simpan hasil ke variabel timeToFullHours
     timeToFullHours = capToFull > 0 ? capToFull / currentRem : 0;
@@ -2106,6 +2109,7 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
         const whPos = values[INDEX_PT.WH_POS] || 0;
         const whNeg = values[INDEX_PT.WH_NEG] || 0;
         fullCap = values[INDEX_PT.CAP_CHG] || 0;
+         dchgCap = values[INDEX_PT.CAP_DISCHG] || 0;
         
 
         const maxTemp = Math.max(tempBattery, tempMosfet);
