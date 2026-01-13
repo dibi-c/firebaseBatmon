@@ -610,7 +610,7 @@ body:has(#halaman-jam:not(.hidden)) {
 
         
 
-        <section id="safety-status-section" class="status-box mb-6 hidden bg-green-100 text-green-600 border border-green-400">
+        <section id="safety-status-section" class="status-box mb-6 bg-green-100 text-green-600 border border-green-400">
             <h3 class="font-bold text-xl mb-1">Status Keselamatan: <span id="safety-status-text">Normal</span></h3>
             <p class="text-sm" id="safety-message">Semua parameter dalam batas aman.</p>
         </section>
@@ -1194,211 +1194,141 @@ function formatTime(hours) {
 }
   
       
- function parseData(dataView, type) {
+function parseData(dataView, type) {
     const actualLength = dataView.byteLength;
-    let expectedLength = 0;
-    let isByteType = false; // Flag untuk membedakan ER dengan VA/PT
-
-    // Tentukan aturan berdasarkan tipe yang dikirim
-    if (type === 'VA') {
-        expectedLength = 46;
-    } else if (type === 'PT') {
-        expectedLength = 46;
-    } else if (type === 'ER') {
-        expectedLength = 8; // 1 Header + 6 Data + 1 Checksum
-        isByteType = true;
-    }
-
-    // Validasi panjang
-    if (actualLength !== expectedLength) {
-        console.error(`[${type}] Panjang salah: ${actualLength} (Harusnya ${expectedLength})`);
+    
+    // 1. Ringkas penentuan aturan (Logika tetap sama)
+    const config = { 'VA': 46, 'PT': 46, 'ER': 8 }[type];
+    if (actualLength !== config) {
+        console.error(`[${type}] Panjang salah: ${actualLength} (Harusnya ${config})`);
         return null;
     }
 
-    // Validasi Checksum
+    // 2. Validasi Checksum (Tetap menggunakan new Uint8Array sesuai permintaan)
     const bodyData = new Uint8Array(dataView.buffer, dataView.byteOffset + 1, actualLength - 2);
-    const receivedChecksum = dataView.getUint8(actualLength - 1);
-    if (receivedChecksum !== calculateChecksum(bodyData)) {
+    if (dataView.getUint8(actualLength - 1) !== calculateChecksum(bodyData)) {
         console.error(`[${type}] Checksum Gagal`);
         return null;
     }
 
+    // 3. Ekstraksi Data (Kompresi loop dengan ternary)
     const values = [];
-    if (isByteType) {
-        // Ambil data per 1 byte (Khusus ER)
-        for (let i = 0; i < 6; i++) {
-            values.push(dataView.getUint8(1 + i));
-        }
-    } else {
-        // Ambil data per 4 byte (Untuk VA dan PT)
-        let numFloats = (expectedLength - 2) / 4;
-        for (let i = 0; i < numFloats; i++) {
-            values.push(dataView.getFloat32(1 + (i * 4), true));
-        }
+    const isER = type === 'ER';
+    const count = isER ? 6 : (config - 2) / 4;
+
+    for (let i = 0; i < count; i++) {
+        values.push(
+            isER ? dataView.getUint8(1 + i) 
+                 : dataView.getFloat32(1 + (i * 4), true)
+        );
     }
 
     return values;
 }
    
 
-let isBluetoothBusy = false; // Flag untuk mencegah tabrakan perintah
+let isBluetoothBusy = false;
 
 async function sendRequestCustom(char1, char2) {
     // 1. Validasi Koneksi
-    if (!txCharacteristic || !device || !device.gatt.connected) {
+    if (!txCharacteristic?.service?.device?.gatt?.connected) {
         console.warn("⚠️ Bluetooth tidak terhubung.");
         return;
     }
 
-    // 2. Cegah Tabrakan Operasi (GATT Lock)
+    // 2. Cegah Tabrakan dengan Retry (Logika tetap sama)
     if (isBluetoothBusy) {
-        // Jika sibuk, kita coba lagi dalam 100ms (Opsional: atau langsung return)
         setTimeout(() => sendRequestCustom(char1, char2), 100);
         return;
     }
 
     try {
-        isBluetoothBusy = true; // Kunci akses Bluetooth
+        isBluetoothBusy = true;
 
-        const header = 0xBB;
-        const c1 = char1.charCodeAt(0);
-        const c2 = char2.charCodeAt(0);
-        
-        // Hitung Checksum: 0xBB ^ C1 ^ C2
-        const checksum = (header ^ c1 ^ c2) & 0xFF; 
-        const packet = new Uint8Array([header, c1, c2, checksum]);
+        const c1 = char1.charCodeAt(0), c2 = char2.charCodeAt(0);
+        const checksum = (0xBB ^ c1 ^ c2) & 0xFF;
+        const packet = new Uint8Array([0xBB, c1, c2, checksum]);
 
-        // Kirim data ke BMS
         await txCharacteristic.writeValue(packet);
         
-        console.log(`📡 Sent Request: ${char1}${char2} (Packet: ${header.toString(16)} ${c1.toString(16)} ${c2.toString(16)} ${checksum.toString(16)})`);
+        console.log(`📡 Sent: ${char1}${char2} [${packet.reduce((s, b) => s + b.toString(16).padStart(2, '0') + ' ', '').toUpperCase()}]`);
 
     } catch (error) {
         console.warn(`⚠️ Gagal kirim ${char1}${char2}:`, error);
     } finally {
-        // 3. Lepaskan Kunci setelah jeda singkat (agar BMS siap menerima perintah selanjutnya)
-        setTimeout(() => {
-            isBluetoothBusy = false;
-        }, 150); // Jeda 150ms aman untuk modul ESP32/BMS
+        // 3. Release lock dengan delay 150ms
+        setTimeout(() => isBluetoothBusy = false, 150);
     }
 }
 
 
- function handleNotifications(event) {
+function handleNotifications(event) {
     const incomingData = event.target.value.buffer;
-    const incomingUint8 = new Uint8Array(incomingData);
     
-    // LOG 1: Pantau data yang baru saja masuk (biasanya per 20 byte)
-    console.log("📥 Incoming (Hex):", Array.from(incomingUint8).map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' '));
-    
-    // 1. Gabungkan data baru ke buffer utama
+    // 1. Gabungkan data ke buffer utama (Logika tetap sama)
     const combined = new Uint8Array(dataBuffer.byteLength + incomingData.byteLength);
     combined.set(new Uint8Array(dataBuffer), 0);
-    combined.set(incomingUint8, dataBuffer.byteLength);
+    combined.set(new Uint8Array(incomingData), dataBuffer.byteLength);
     dataBuffer = combined.buffer;
 
     let view = new Uint8Array(dataBuffer);
+    const toHex = (arr) => Array.from(arr).map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+    
+    console.log("📥 Incoming (Hex):", toHex(new Uint8Array(incomingData)));
     console.log(`📦 Current Buffer Size: ${view.length} bytes`);
 
-    // 2. Loop paket selama data masih ada
+    // 2. Loop paket
     while (view.length > 0) {
         const header = view[0];
-        let targetLength = 0;
+        const config = { 0xAA: [46, 'VA'], 0xCC: [46, 'PT'], 0xEE: [8, 'ER'] }[header];
 
-        // Identifikasi paket berdasarkan Header
-if (header === 0xAA) {
-    targetLength = 46; // Paket Volt/Amp (VA)
-    currentPacketType = 'VA';
-} else if (header === 0xCC) {
-    targetLength = 46; // Paket Parameter (PT)
-    currentPacketType = 'PT';
-} else if (header === 0xEE) {
-    targetLength = 8; 
-    currentPacketType = 'ER'; // <--- UBAH INI JADI ER
-} else {
-    console.warn(`🗑️ Skipping byte: 0x${header.toString(16).toUpperCase()}`);
-    view = view.slice(1);
-    continue;
-}
+        if (!config) {
+            console.warn(`🗑️ Skipping byte: 0x${header.toString(16).toUpperCase()}`);
+            view = view.slice(1);
+            continue;
+        }
 
-        // 3. Cek apakah panjang data mencukupi target
+        const [targetLength, type] = config;
+
+        // 3. Cek panjang data
         if (view.length >= targetLength) {
             console.log(`✅ Header Detected: 0x${header.toString(16).toUpperCase()} | Expecting: ${targetLength} bytes`);
             
-            const packetToParse = view.slice(0, targetLength);
-            
-            // LOG 2: Isi paket lengkap sebelum masuk ke fungsi parseData
-           // Menggunakan ternary bertingkat yang benar
-           // 1. Debugging: Cetak paket mentah dalam bentuk Hex
-// 1. Log Data Mentah untuk Debugging
-const typeName = header === 0xAA ? 'VA' : header === 0xCC ? 'PT' : 'ER';
-console.log(`📜 Full Packet (Type ${typeName}):`, 
-    Array.from(packetToParse).map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' '));
+            const packet = view.slice(0, targetLength);
+            console.log(`📜 Full Packet (Type ${type}):`, toHex(packet));
 
+            const dataView = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
+            const parsedValues = parseData(dataView, type);
 
-          
+            if (parsedValues) {
+                updateDashboard(parsedValues, type);
+                
+                // Update UI Status (Logic preserved)
+                const statusMap = {
+                    'VA': ["Terkoneksi | Menerima data Volt/Amp", 'text-red-500', 'text-green-500'],
+                    'PT': ["Terkoneksi | Menerima data Parameter", 'text-red-500', 'text-green-500'],
+                    'ER': ["Terkoneksi | Menerima data ErrorCode", 'text-green-500', 'text-yellow-500']
+                };
 
-// 2. Gunakan packetToParse (karena ini hasil slice yang sudah bersih)
-const dataView = new DataView(packetToParse.buffer, packetToParse.byteOffset, packetToParse.byteLength);
+                const [msg, oldCls, newCls] = statusMap[type];
+                statusMessage.textContent = msg;
+                statusMessage.classList.replace(oldCls, newCls);
 
-// 3. Eksekusi Parsing
-// Kita simpan hasil parseData ke dalam variabel sementara untuk divalidasi
-const parsedValues = parseData(dataView, currentPacketType);
-
-// 4. Update UI & Dashboard hanya jika parsing BERHASIL (tidak null)
-if (parsedValues) {
-    const result = {
-        type: currentPacketType,
-        data: parsedValues
-    };
-
-    // Panggil fungsi update dashboard utama
-    updateDashboard(result.data, result.type);
-    
-    // Update Pesan Status di UI
-    switch (result.type) {
-        case 'VA':
-            statusMessage.textContent = "Terkoneksi | Menerima data Volt/Amp";
-            statusMessage.classList.replace('text-red-500', 'text-green-500'); // Opsional: ganti warna jadi hijau
-            
-            // Khusus VA, log data arus ke grafik (indeks 6 sesuai INDEX_VA.CURRENT)
-            if (typeof logBMSData === 'function' && result.data[6] !== undefined) {
-                logBMSData(result.data[6]); 
+                if (type === 'VA' && typeof logBMSData === 'function' && parsedValues[6] !== undefined) {
+                    logBMSData(parsedValues[6]);
+                }
+                if (typeof errorBox !== 'undefined') errorBox.classList.add('hidden');
+            } else {
+                console.warn(`[Bluetooth] Gagal memproses paket ${type}`);
+                statusMessage.textContent = `Data ${type} Rusak (Checksum Error)`;
+                statusMessage.classList.replace('text-green-500', 'text-red-500');
             }
-            break;
-
-        case 'PT':
-            statusMessage.textContent = "Terkoneksi | Menerima data Parameter";
-            statusMessage.classList.replace('text-red-500', 'text-green-500');
-            break;
-
-        case 'ER':
-            statusMessage.textContent = "Terkoneksi | Menerima data ErrorCode";
-            statusMessage.classList.replace('text-green-500', 'text-yellow-500'); // Kuning untuk warning/error
-            break;
-    }
-
-    // Sembunyikan error box jika data masuk dengan benar
-    if (typeof errorBox !== 'undefined') errorBox.classList.add('hidden');
-
-} else {
-    // Jika parseData mengembalikan null (misal karena checksum salah)
-    console.warn(`[Bluetooth] Gagal memproses paket ${currentPacketType}`);
-    statusMessage.textContent = `Data ${currentPacketType} Rusak (Checksum Error)`;
-    statusMessage.classList.replace('text-green-500', 'text-red-500');
-}
-
-            // Potong view setelah diproses
             view = view.slice(targetLength);
         } else {
-            // Data belum lengkap (misal baru 10 dari 38 byte)
             console.log(`⏳ Waiting for more data... (${view.length}/${targetLength})`);
             break;
         }
     }
-
-    // 4. Update dataBuffer utama dengan sisa data yang belum lengkap
-    // Kita buat buffer baru dari sisa view agar memori bersih
     dataBuffer = new Uint8Array(view).buffer;
 }
         
@@ -1421,8 +1351,9 @@ if (parsedValues) {
                 console.error("Error saat mencoba upload notifikasi:", e);
             }
         }
+     
         
-       function onDisconnected(event) {
+  function onDisconnected(event) {
     // Mendapatkan objek perangkat dari event jika tersedia
     const disconnectedDevice = event ? event.target : device;
     
@@ -2013,7 +1944,6 @@ function getValueFromUI(key) {
     return el ? parseFloat(el.textContent) || 0 : 0;
 }
 let fullCap;
-let dchgCap
         // --- Update Dashboard (Termasuk logic Min/Max baru) ---
 /**
  * FUNGSI UTAMA: Update Dashboard
@@ -2037,9 +1967,7 @@ const capRemFromUI = parseFloat(document.getElementById('capacity-used-value').t
 
 // Variabel lokal untuk perhitungan di fungsi ini
 let currentRem = currentFromUI;
-    // Hasil akan menjadi 0 jika dchgCap lebih besar dari fullCap
-let diff = Math.max(0, fullCap - dchgCap);
-let remainingCap = capRemFromUI - diff;
+let remainingCap = capRemFromUI;
 
 
 
@@ -2060,7 +1988,7 @@ if (Math.abs(currentRem) < 0.1) {
 } 
 else if (currentRem > 0) {
     // Charging (Menuju Cap Chg)
-    const capToFull = fullCap - capRemFromUI;
+    const capToFull = fullCap - remainingCap;
     // Safety check agar tidak membagi dengan nol atau hasil negatif
     // Simpan hasil ke variabel timeToFullHours
     timeToFullHours = capToFull > 0 ? capToFull / currentRem : 0;
@@ -2177,7 +2105,6 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
         const whPos = values[INDEX_PT.WH_POS] || 0;
         const whNeg = values[INDEX_PT.WH_NEG] || 0;
         fullCap = values[INDEX_PT.CAP_CHG] || 0;
-        dchgCap = values[INDEX_PT.CAP_DISCHG] || 0;
         
 
         const maxTemp = Math.max(tempBattery, tempMosfet);
@@ -2697,64 +2624,75 @@ async function startAutoUploadInterval() {
           // Fungsi ini akan terus berjalan di background tanpa risiko antrian.
           startAutoUploadInterval();
 
-          // initNumbers();
-           //updateJamRealtime();
-           // Gunakan pembersihan untuk menghindari duplikasi interval
-        //clearInterval(jamInterval);
-       // jamInterval = setInterval(updateJamRealtime, 1000);
-        
-      
-
-        // 5. Cuaca (10 menit sekali)
-        //fetchWeatherByGPS();
-        //clearInterval(weatherInterval);
-        //weatherInterval = setInterval(fetchWeatherByGPS, 600000);
-
-  
-
         });
 
 
 
 
 
- function pindahKe(halaman) {
-   // Cari baris ini dan ubah menjadi:
-    const halUtama = document.querySelectorAll('header, section, #grafik-section, .flex.justify-between.items-center.mb-4');
+ 
+async function pindahKe(halaman) {
+    // Ambil elemen terbaru setiap kali pindah untuk memastikan elemen dinamis ikut tersembunyi
+    const halUtama = document.querySelectorAll('header, section, main-dashboard-container, #grafik-section, .flex.justify-between.items-center.mb-4');
     const halJam = document.getElementById('halaman-jam');
     const btnMonitor = document.getElementById('btn-monitor');
     const btnJam = document.getElementById('btn-jam');
 
     if (halaman === 'jam') {
-        // Sembunyikan Dashboard, Munculkan Jam
-        halUtama.forEach(el => el.classList.add('hidden'));
+        // --- 1. VISUAL: SEMBUNYIKAN DASHBOARD ---
+        halUtama.forEach(el => {
+            // Cek agar tidak menyembunyikan kontainer jam jika dia berada di dalam section
+            if (!el.contains(halJam) && el !== halJam) {
+                el.classList.add('hidden');
+            }
+        });
         halJam.classList.remove('hidden');
 
-        // Ubah Warna Tombol Jam jadi Biru (Aktif)
+        // Update Style Tombol
         btnJam.classList.add('bg-blue-500', 'text-white', 'shadow-sm');
         btnJam.classList.remove('text-gray-500', 'dark:text-gray-300');
-
-        // Ubah Warna Tombol Monitor jadi Abu-abu (Pasif)
         btnMonitor.classList.remove('bg-blue-500', 'text-white', 'shadow-sm');
         btnMonitor.classList.add('text-gray-500', 'dark:text-gray-300');
 
-       
+        // --- 2. LOGIKA JAM ---
+        initNumbers();
+        updateJamRealtime();
+        clearInterval(jamInterval);
+        jamInterval = setInterval(updateJamRealtime, 1000);
+
+        // --- 3. LOGIKA CUACA DENGAN CACHE ---
+        // Cek apakah ada data cuaca lama di storage agar tidak kosong saat loading
+        const cachedWeather = localStorage.getItem('weatherData');
+        if (cachedWeather) {
+            // Fungsi render ini harus sesuai dengan nama fungsi tampilan cuaca Anda
+            if (typeof renderWeatherData === "function") {
+                renderWeatherData(JSON.parse(cachedWeather));
+            }
+        }
+
+        // Panggil API untuk memperbarui data (fungsi ini nanti mengecek timestamp)
+        fetchWeatherByGPS();
+        
+        clearInterval(weatherInterval);
+        weatherInterval = setInterval(fetchWeatherByGPS, 600000); // Update tiap 10 menit
+
     } else {
-
-
-        // Munculkan Dashboard, Sembunyikan Jam
+        // --- 4. VISUAL: KEMBALI KE MONITOR ---
         halUtama.forEach(el => el.classList.remove('hidden'));
         halJam.classList.add('hidden');
 
-        // Ubah Warna Tombol Monitor jadi Biru (Aktif)
+        // Update Style Tombol
         btnMonitor.classList.add('bg-blue-500', 'text-white', 'shadow-sm');
         btnMonitor.classList.remove('text-gray-500', 'dark:text-gray-300');
-
-        // Ubah Warna Tombol Jam jadi Abu-abu (Pasif)
         btnJam.classList.remove('bg-blue-500', 'text-white', 'shadow-sm');
         btnJam.classList.add('text-gray-500', 'dark:text-gray-300');
+
+        // Hentikan interval untuk menghemat baterai/resource saat tidak dilihat
+        clearInterval(jamInterval);
+        clearInterval(weatherInterval);
     }
 }
+
 // 1. Inisialisasi Angka 1-12
 function initNumbers() {
     const container = document.getElementById('numbers-container');
