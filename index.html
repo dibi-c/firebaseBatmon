@@ -828,7 +828,7 @@ const INDEX_PT = {
     TEMP_1: 0, TEMP_2: 1, CAP_REMAINING: 2, 
     CAP_CHG: 3, CAP_DISCHG: 4, 
     RELAY_CHG: 5, RELAY_DISCHG: 6, 
-    SOH: 7, WH_POS: 8, WH_NEG: 9, CYCLE: 10
+    SOH: 7, WH_POS: 8, WH_NEG: 9, CYCLE: 10, USED_LOAD: 11
 };
 
 const INDEX_ER = {
@@ -863,6 +863,7 @@ const ALL_DATA_MAP = [
     { key: 'energy_in', label: 'Energy Masuk', unit: 'Wh', index: INDEX_PT.WH_POS, packet: 'PT', showInExtra: true, iconKey: 'ENERGY' },
     { key: 'energy_out', label: 'Energy Keluar', unit: 'Wh', index: INDEX_PT.WH_NEG, packet: 'PT', showInExtra: true, iconKey: 'ENERGY' },
     { key: 'cycle_count', label: 'Cycle Count', unit: 'CC', index: INDEX_PT.CYCLE, packet: 'PT', showInExtra: true, iconKey: 'HEART' },
+    { key: 'percentage_use', label: 'Penggunaan', unit: '%', index: INDEX_PT.USED_LOAD, packet: 'PT', showInExtra: false },
 
     // --- PAKET ER ---
     { key: 'error_code', index: INDEX_ER.ERROR_CODE, packet: 'ER', showInExtra: false },
@@ -1073,6 +1074,8 @@ if (storedConfig && storedConfig.apiKey && storedConfig.projectId) {
         const socValueElement = document.getElementById('soc-value');
         const socProgressElement = document.getElementById('soc-progress');
         const sohValueElement = document.getElementById('soh-value');
+        const usedLoadValueElement = document.getElementById('used-value');
+        
         const sohProgressElement = document.getElementById('soh-progress');
         const tempValueElement = document.getElementById('temp-value');
         const timeRemainingElement = document.getElementById('time-remaining');
@@ -1199,7 +1202,7 @@ function parseData(dataView, type) {
     const actualLength = dataView.byteLength;
     
     // 1. Ringkas penentuan aturan (Logika tetap sama)
-    const config = { 'VA': 46, 'PT': 46, 'ER': 8 }[type];
+    const config = { 'VA': 46, 'PT': 50, 'ER': 8 }[type];
     if (actualLength !== config) {
         console.error(`[${type}] Panjang salah: ${actualLength} (Harusnya ${config})`);
         return null;
@@ -1281,7 +1284,7 @@ function handleNotifications(event) {
     // 2. Loop paket
     while (view.length > 0) {
         const header = view[0];
-        const config = { 0xAA: [46, 'VA'], 0xCC: [46, 'PT'], 0xEE: [8, 'ER'] }[header];
+        const config = { 0xAA: [46, 'VA'], 0xCC: [50, 'PT'], 0xEE: [8, 'ER'] }[header];
 
         if (!config) {
             console.warn(`🗑️ Skipping byte: 0x${header.toString(16).toUpperCase()}`);
@@ -2105,17 +2108,19 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
         const tempBattery = values[INDEX_PT.TEMP_1] || 0;
         const tempMosfet = values[INDEX_PT.TEMP_2] || 0;
         const currentSoh = values[INDEX_PT.SOH] || 0;
+        const currentUsed = values[INDEX_PT.USED_LOAD] || 0;
         const capRem = values[INDEX_PT.CAP_REMAINING] || 0;
         const whPos = values[INDEX_PT.WH_POS] || 0;
         const whNeg = values[INDEX_PT.WH_NEG] || 0;
         fullCap = values[INDEX_PT.CAP_CHG] || 0;
-         dchgCap = values[INDEX_PT.CAP_DISCHG] || 0;
+        dchgCap = values[INDEX_PT.CAP_DISCHG] || 0;
         
 
         const maxTemp = Math.max(tempBattery, tempMosfet);
         if (tempValueElement) tempValueElement.textContent = `${maxTemp.toFixed(1)}°C`;
         if (sohValueElement) {
             sohValueElement.textContent = `${currentSoh.toFixed(1)}%`;
+            usedLoadValueElement.textContent = `${currentUsed.toFixed(1)}%`;
             sohProgressElement.style.width = `${currentSoh}%`;
         }
         if (capacityUsedElement) capacityUsedElement.textContent = `${capRem.toFixed(2)} Ah`;
