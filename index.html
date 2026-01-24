@@ -1074,7 +1074,7 @@ if (storedConfig && storedConfig.apiKey && storedConfig.projectId) {
         const socValueElement = document.getElementById('soc-value');
         const socProgressElement = document.getElementById('soc-progress');
         const sohValueElement = document.getElementById('soh-value');
-        const usedLoadValueElement = document.getElementById('used-value');
+        const usedLoadValueElement = document.getElementById('used-percentage');
         
         const sohProgressElement = document.getElementById('soh-progress');
         const tempValueElement = document.getElementById('temp-value');
@@ -2120,9 +2120,14 @@ timeRemainingElement.textContent = `Waktu Sisa: ${timeRemainingText}`;
         if (tempValueElement) tempValueElement.textContent = `${maxTemp.toFixed(1)}°C`;
         if (sohValueElement) {
             sohValueElement.textContent = `${currentSoh.toFixed(1)}%`;
-            usedLoadValueElement.textContent = `${currentUsed.toFixed(1)}%`;
             sohProgressElement.style.width = `${currentSoh}%`;
         }
+        // Tambahkan pengecekan mandiri di sini
+      if (usedLoadValueElement) {
+    usedLoadValueElement.textContent = `${currentUsed.toFixed(1)}%`;
+     } else {
+    console.warn("Elemen usedLoadValueElement tidak ditemukan di HTML");
+     }
         if (capacityUsedElement) capacityUsedElement.textContent = `${capRem.toFixed(2)} Ah`;
        
         let extraHtml = '';
