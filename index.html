@@ -9,7 +9,6 @@
     <script src="tailwind.js"></script>
     <style>
         /* Menggunakan font Inter */
-        
         html { font-family: 'Inter', sans-serif; }
         
         /* Kartu dasar dengan shadow yang bagus */
@@ -447,73 +446,7 @@ body:has(#halaman-jam:not(.hidden)) {
     
 
 
-<div id="halaman-jam" class="hidden flex flex-col landscape:flex-row items-center justify-evenly min-h-screen bg-black overflow-hidden p-4">
 
-    <button class="fs-btn fixed top-4 right-4 z-50" onclick="toggleFullscreen()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-    </button>
-
-    <div class="flex-shrink-0 mb-6 landscape:mb-0">
-        <div class="clock-container shadow-[0_0_80px_rgba(255,0,0,0.2)] border-8 border-gray-900 rounded-full relative bg-black" onclick="toggleFullscreen()">
-            <div id="numbers-container" class="absolute inset-0"></div>
-            <div class="dot"></div>
-            <div id="hour-hand" class="hand hour-hand"></div>
-            <div id="min-hand" class="hand min-hand"></div>
-            <div id="sec-hand" class="hand sec-hand"></div>
-            <div class="absolute top-1/2 left-1/2 w-5 h-5 bg-red-600 rounded-full -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg"></div>
-        </div>
-    </div>
-
-          
-
-  <div class="flex flex-col items-center landscape:items-start text-center landscape:text-left">
-
-
-
-
-
-        <div class="flex items-baseline mb-2">
-            <h1 id="time-digital" class="font-black text-white tracking-tighter">00:00</h1>
-            <span id="time-seconds" class="font-bold text-red-600 ml-2 italic">00</span>
-        </div>
-        
-        <p id="full-date-text" class="text-gray-400 font-bold uppercase tracking-[0.3em] mb-6 text-xl md:text-2xl lg:text-3xl">
-          SABTU, 25 MEI 2024
-        </p>
-        
-       <div class="weather-box-updated">
-    <div class="flex items-center gap-3">
-       
-        <div class="flex flex-col text-left">
-             <span id="temp" class="temp-text-flex text-yellow-400">--°C</span>
-            <span id="weatherDesc" class="weather-text-sub-flex text-yellow-400 font-bold uppercase">Memuat...</span>
-            <span id="city" class="label-tiny text-yellow-400 opacity-70">Jakarta</span>
-        </div>
-    </div>
-
-    <div class="divider-v"></div>
-
-    <div class="flex flex-col items-center">
-        <span class="label-tiny">Hum</span>
-        <span id="humidity" class="weather-text-sub-flex font-bold text-white">--%</span>
-    </div>
-
-    <div class="divider-v"></div>
-
-    <div class="flex flex-col items-center">
-        <span class="label-tiny">Wind</span>
-        <span id="windspeed" class="weather-text-sub-flex font-bold text-white">-- <small class="text-[1vmin]">km/h</small></span>
-    </div>
-
-    <div class="divider-v"></div>
-
-    <div class="flex flex-col items-center">
-        <span class="label-tiny">UV</span>
-        <span id="uvIndex" class="weather-text-sub-flex font-bold text-white">--</span>
-    </div>
-</div>
-    </div>
-</div>
 
 
     <div id="background-overlay"></div>
@@ -738,17 +671,6 @@ body:has(#halaman-jam:not(.hidden)) {
 
  
 
-
-<nav class="flex space-x-2 mr-4 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-    <button id="btn-monitor" onclick="pindahKe('monitor')" 
-        class="text-xs font-bold px-4 py-1.5 rounded-md transition-all duration-300 bg-blue-500 text-white shadow-sm">
-        Monitor
-    </button>
-    <button id="btn-jam" onclick="pindahKe('jam')" 
-        class="text-xs font-bold px-4 py-1.5 rounded-md transition-all duration-300 text-gray-500 dark:text-gray-300">
-        Jam
-    </button>
-</nav>
 
     </div>
 
@@ -1397,7 +1319,7 @@ function handleNotifications(event) {
     dataBuffer = new ArrayBuffer(0); 
 
     // Update UI Dot dan Dashboard
-    updateConnectionUI("Disconnected");
+    //updateConnectionUI("Disconnected");
     
     const initialValues = Array(17).fill(0.0);
     // Inisialisasi array kosong
@@ -1468,7 +1390,7 @@ function handleNotifications(event) {
                 const info = statusMessage.textContent;
     
                  // PANGGIL DI SINI agar UI berubah
-                updateConnectionUI(info, "CONNECTED");
+                //updateConnectionUI(info, "CONNECTED");
 
                 // Reset min/max trackers saat koneksi baru
                 minTotalVoltage = Infinity;
@@ -2646,268 +2568,7 @@ async function startAutoUploadInterval() {
 
 
 
- 
-async function pindahKe(halaman) {
-    // Ambil elemen terbaru setiap kali pindah untuk memastikan elemen dinamis ikut tersembunyi
-    const halUtama = document.querySelectorAll('header, section, main-dashboard-container, #grafik-section, .flex.justify-between.items-center.mb-4');
-    const halJam = document.getElementById('halaman-jam');
-    const btnMonitor = document.getElementById('btn-monitor');
-    const btnJam = document.getElementById('btn-jam');
-
-    if (halaman === 'jam') {
-        // --- 1. VISUAL: SEMBUNYIKAN DASHBOARD ---
-        halUtama.forEach(el => {
-            // Cek agar tidak menyembunyikan kontainer jam jika dia berada di dalam section
-            if (!el.contains(halJam) && el !== halJam) {
-                el.classList.add('hidden');
-            }
-        });
-        halJam.classList.remove('hidden');
-
-        // Update Style Tombol
-        btnJam.classList.add('bg-blue-500', 'text-white', 'shadow-sm');
-        btnJam.classList.remove('text-gray-500', 'dark:text-gray-300');
-        btnMonitor.classList.remove('bg-blue-500', 'text-white', 'shadow-sm');
-        btnMonitor.classList.add('text-gray-500', 'dark:text-gray-300');
-
-        // --- 2. LOGIKA JAM ---
-        initNumbers();
-        updateJamRealtime();
-        clearInterval(jamInterval);
-        jamInterval = setInterval(updateJamRealtime, 1000);
-
-        // --- 3. LOGIKA CUACA DENGAN CACHE ---
-        // Cek apakah ada data cuaca lama di storage agar tidak kosong saat loading
-        const cachedWeather = localStorage.getItem('weatherData');
-        if (cachedWeather) {
-            // Fungsi render ini harus sesuai dengan nama fungsi tampilan cuaca Anda
-            if (typeof renderWeatherData === "function") {
-                renderWeatherData(JSON.parse(cachedWeather));
-            }
-        }
-
-        // Panggil API untuk memperbarui data (fungsi ini nanti mengecek timestamp)
-        fetchWeatherByGPS();
-        
-        clearInterval(weatherInterval);
-        weatherInterval = setInterval(fetchWeatherByGPS, 600000); // Update tiap 10 menit
-
-    } else {
-        // --- 4. VISUAL: KEMBALI KE MONITOR ---
-        halUtama.forEach(el => el.classList.remove('hidden'));
-        halJam.classList.add('hidden');
-
-        // Update Style Tombol
-        btnMonitor.classList.add('bg-blue-500', 'text-white', 'shadow-sm');
-        btnMonitor.classList.remove('text-gray-500', 'dark:text-gray-300');
-        btnJam.classList.remove('bg-blue-500', 'text-white', 'shadow-sm');
-        btnJam.classList.add('text-gray-500', 'dark:text-gray-300');
-
-        // Hentikan interval untuk menghemat baterai/resource saat tidak dilihat
-        clearInterval(jamInterval);
-        clearInterval(weatherInterval);
-    }
-}
-
-// 1. Inisialisasi Angka 1-12
-function initNumbers() {
-    const container = document.getElementById('numbers-container');
-    for (let i = 1; i <= 12; i++) {
-        const num = document.createElement('div');
-        num.className = 'number';
-        num.style.transform = `rotate(${i * 30}deg)`;
-        const span = document.createElement('span');
-        span.textContent = i;
-        span.style.display = 'inline-block';
-        span.style.transform = `rotate(-${i * 30}deg)`;
-        num.appendChild(span);
-        container.appendChild(num);
-    }
-}
-
-
-let weatherData = { temp: "", desc: "", city: "" };
-
-async function fetchWeatherByGPS() {
-    const getCoords = () => new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-    });
-
-    try {
-        let lat, lon, city = "Lokasi";
-        
-        // 1. Dapatkan Lokasi (GPS dengan Fallback IP)
-        try {
-            const pos = await getCoords();
-            lat = pos.coords.latitude;
-            lon = pos.coords.longitude;
-            const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-            const revData = await revRes.json();
-            city = revData.address.city || revData.address.town || revData.address.village || "Sekitar Anda";
-        } catch (geoError) {
-            const lRes = await fetch('https://ipapi.co/json/');
-            const lData = await lRes.json();
-            lat = lData.latitude; 
-            lon = lData.longitude; 
-            city = lData.city;
-        }
-
-        document.getElementById('city').textContent = city;
-        weatherData.city = city;
-
-        // 2. FETCH DATA REALTIME
-        // Ubah 'daily=uv_index_max' menjadi 'current=uv_index' agar akurat di malam hari
-        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,uv_index&timezone=auto`);
-        const wData = await wRes.json();
-        
-        const current = wData.current; // Shortcut ke data realtime
-
-        // 3. Update Data Utama
-        weatherData.temp = Math.round(current.temperature_2m);
-        document.getElementById('temp').textContent = `${weatherData.temp}°C`;
-        
-        const labels = { 0: "Cerah", 1: "Cerah", 2: "Berawan", 3: "Mendung", 45: "Kabut", 61: "Hujan", 95: "Badai" };
-        weatherData.desc = labels[current.weather_code] || "Berawan";
-        document.getElementById('weatherDesc').textContent = weatherData.desc;
-
-        // 4. Update Detail Sebelah Kanan (REALTIME)
-        document.getElementById('windspeed').textContent = `${current.wind_speed_10m} km/h`;
-        document.getElementById('humidity').textContent = `${current.relative_humidity_2m}%`;
-        
-        // AMBIL UV REALTIME (Bukan Daily Max)
-        const uvValue = current.uv_index; 
-        const uvEl = document.getElementById('uvIndex');
-        
-        if (uvEl) {
-            uvEl.textContent = uvValue.toFixed(1); // Contoh: 0.0 atau 5.2
-
-            // Warna Indikator UV Realtime
-            if (uvValue >= 8) {
-                uvEl.style.color = "#ef4444"; // Merah (Bahaya)
-            } else if (uvValue >= 3) {
-                uvEl.style.color = "#fbbf24"; // Kuning (Sedang)
-            } else if (uvValue > 0) {
-                uvEl.style.color = "#4ad66d"; // Hijau (Aman)
-            } else {
-                uvEl.style.color = "#9ca3af"; // Abu-abu (Malam hari / 0)
-            }
-        }
-
-    } catch (e) {
-        console.error("Gagal memperbarui cuaca:", e);
-    }
-}
-
-// 1. Caching Elemen (Simpan di luar fungsi agar lebih ringan)
-const secHand = document.getElementById('sec-hand');
-const minHand = document.getElementById('min-hand');
-const hourHand = document.getElementById('hour-hand');
-const timeDigital = document.getElementById('time-digital');
-const timeSeconds = document.getElementById('time-seconds');
-const fullDateText = document.getElementById('full-date-text');
-
-function updateJamRealtime() {
-    const now = new Date();
-    
-    const s = now.getSeconds();
-    const m = now.getMinutes();
-    const h = now.getHours();
-
-    // --- LOGIKA ANALOG ---
-    // Optimasi: Gunakan transisi yang tetap, tapi atur 'transform' agar tidak glitch
-    const sDeg = (s * 6); // 360/60
-    const mDeg = (m * 6) + (s * 0.1); 
-    const hDeg = ((h % 12) * 30) + (m * 0.5);
-
-    // Gunakan requestAnimationFrame untuk pergerakan yang lebih mulus jika perlu, 
-    // tapi untuk jam 1 detik sekali, cara ini sudah sangat stabil:
-    
-    // Perbaikan Glitch Detik 0:
-    // Jika s == 0, kita bisa mematikan transisi sementara secara singkat
-    secHand.style.transition = (s === 0) ? 'none' : 'all 0.1s cubic-bezier(0.1, 2.7, 0.58, 1)';
-    
-    secHand.style.transform = `translateX(-50%) rotate(${sDeg}deg)`;
-    minHand.style.transform = `translateX(-50%) rotate(${mDeg}deg)`;
-    hourHand.style.transform = `translateX(-50%) rotate(${hDeg}deg)`;
-
-    // --- LOGIKA DIGITAL ---
-    // String template literal cukup efisien
-    const jamMenit = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    const detik = String(s).padStart(2, '0');
-
-    // Hanya update teks jika memang berubah (opsional, tapi bagus untuk performa)
-    if (timeDigital.textContent !== jamMenit) timeDigital.textContent = jamMenit;
-    timeSeconds.textContent = detik;
-    
-    // Update Tanggal (Hanya perlu diupdate sekali sehari atau saat jam 00:00)
-    // Tapi untuk kesederhanaan, biarkan di sini atau cek jika jam === 0
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-    const tanggalBaru = now.toLocaleDateString('id-ID', options);
-    if (fullDateText.textContent !== tanggalBaru) fullDateText.textContent = tanggalBaru;
-}
-
-
-// Tambahkan update status bluetooth ke fungsi updateConnectionUI Anda
-function updateConnectionUI(message, deviceName = "") {
-    const dot = document.getElementById('dot-status');
-    const txt = document.getElementById('text-message');
-
-    if (!dot || !txt) return;
-
-    // Cek apakah pesan mengandung kata "Terkoneksi"
-    const isConnected = message.toLowerCase().includes("terkoneksi");
-
-    if (isConnected) {
-        // Saat Terkoneksi: Dot Kuning, Teks Kuning
-        dot.classList.replace('bg-red-500', 'bg-yellow-400');
-        txt.classList.replace('text-gray-500', 'text-yellow-400');
-        txt.textContent = deviceName || "CONNECTED";
-    } else {
-        // Saat Terputus: Dot Merah, Teks Abu-abu
-        dot.classList.replace('bg-yellow-400', 'bg-red-500');
-        txt.classList.replace('text-yellow-400', 'text-gray-500');
-        txt.textContent = "DIS";
-    }
-}
-
-
-function toggleFullscreen() {
-    const fsText = document.getElementById('fs-text');
-    const iconExpand = document.getElementById('icon-expand');
-
-    if (!document.fullscreenElement) {
-        // MASUK FULLSCREEN
-        const el = document.documentElement;
-        if (el.requestFullscreen) el.requestFullscreen();
-        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        else if (el.msRequestFullscreen) el.msRequestFullscreen();
-        
-        // Update UI Tombol
-        fsText.textContent = "Matikan Layar Penuh";
-        fsText.classList.replace('text-gray-300', 'text-red-500');
-    } else {
-        // KELUAR FULLSCREEN
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        
-        // Update UI Tombol
-        fsText.textContent = "Aktifkan Layar Penuh";
-        fsText.classList.replace('text-red-500', 'text-gray-300');
-    }
-}
-
-// Tambahkan listener ini agar jika user tekan tombol 'ESC', teks tombol tetap sinkron
-document.addEventListener('fullscreenchange', () => {
-    const fsText = document.getElementById('fs-text');
-    if (!document.fullscreenElement && fsText) {
-        fsText.textContent = "Aktifkan Layar Penuh";
-        fsText.classList.replace('text-red-500', 'text-gray-300');
-    }
-});
-
 
     </script>
 </body>
 </html>
-
-
